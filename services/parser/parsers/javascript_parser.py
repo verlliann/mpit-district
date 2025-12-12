@@ -204,6 +204,39 @@ class JavaScriptParser(HTMLParser):
                     script.decompose()
                 content = body.get_text(separator='\n', strip=True)
         
+        # Проверка на блокировки и ошибки
+        content_lower = content.lower() if content else ''
+        block_messages = [
+            'ваш браузер устарел',
+            'browser is outdated',
+            'доступ запрещен',
+            'access denied',
+            'cloudflare',
+            'ddos protection',
+            'проверка браузера',
+            'browser check',
+            'captcha',
+            'robot',
+            'bot detected'
+        ]
+        
+        # Если обнаружена блокировка
+        if content and any(msg in content_lower for msg in block_messages):
+            # Пробуем извлечь контент из других мест
+            body = soup.find('body')
+            if body:
+                for script in body(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+                    script.decompose()
+                # Ищем основной контент
+                article_elem = body.find('article') or body.find('main') or body.find('[role="article"]')
+                if article_elem:
+                    content = article_elem.get_text(separator='\n', strip=True)
+                    content = self.clean_text(content)
+            
+            # Если все еще блокировка, выбрасываем ошибку
+            if any(msg in content_lower for msg in block_messages):
+                raise ContentNotFound(f"Site blocked parsing or requires authentication: {url}. Content: {content[:200]}")
+        
         # Проверка наличия контента
         if not content or len(content.strip()) < 50:
             raise ContentNotFound(f"Article content not found or too short: {url}")

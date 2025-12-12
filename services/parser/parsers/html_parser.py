@@ -110,10 +110,53 @@ class HTMLParser(BaseParser):
         if extract_metadata:
             metadata = self._extract_metadata(soup, article)
         
+        # Проверка на блокировки и ошибки
+        content = self.clean_text(article.text)
+        title = article.title or ''
+        
+        # Проверка на типичные сообщения о блокировке
+        block_messages = [
+            'ваш браузер устарел',
+            'browser is outdated',
+            'доступ запрещен',
+            'access denied',
+            'cloudflare',
+            'ddos protection',
+            'проверка браузера',
+            'browser check',
+            'captcha',
+            'robot',
+            'bot detected'
+        ]
+        
+        content_lower = content.lower()
+        if any(msg in content_lower for msg in block_messages):
+            # Пробуем извлечь контент напрямую из HTML
+            main_content = soup.find('article') or soup.find('main') or soup.find('[role="article"]')
+            if main_content:
+                for script in main_content(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+                    script.decompose()
+                content = main_content.get_text(separator='\n', strip=True)
+                content = self.clean_text(content)
+            
+            # Если все еще блокировка, пробуем найти title в HTML
+            if not title or len(title) < 5:
+                title_tag = soup.find('title')
+                if title_tag:
+                    title = title_tag.get_text(strip=True)
+            
+            # Если контент все еще подозрителен, выбрасываем ошибку
+            if len(content) < 200 and any(msg in content_lower for msg in block_messages):
+                raise ContentNotFound(f"Site blocked parsing or requires authentication: {url}")
+        
+        # Проверка минимальной длины контента
+        if len(content) < 50:
+            raise ContentNotFound(f"Article content too short or not found: {url}")
+        
         # Формирование результата
         result = {
-            'title': article.title or '',
-            'content': self.clean_text(article.text),
+            'title': title,
+            'content': content,
             'excerpt': article.meta_description or article.summary or '',
             'author': ', '.join(article.authors) if article.authors else None,
             'published_at': self._parse_date(article.publish_date),

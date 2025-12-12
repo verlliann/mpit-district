@@ -71,10 +71,23 @@ async def test_parse(url: str):
             print("  - Сайт требует авторизацию")
             print("  - Попробуйте другой URL")
         
+        if "blocked" in error_msg.lower() or "access denied" in error_msg.lower():
+            print("\n[INFO] Сайт заблокировал парсинг:")
+            print("  - Сайт требует авторизацию")
+            print("  - Сайт использует защиту от ботов (Cloudflare, etc.)")
+            print("  - Попробуйте другой URL или используйте прокси")
+            print("  - Для некоторых сайтов нужен JavaScript парсер")
+        
         if "dzen.ru" in url.lower() or "yandex.ru" in url.lower():
             print("\n[INFO] Дзен/Яндекс часто требует JavaScript парсер.")
             print("  Установите Playwright: pip install playwright")
             print("  Затем: playwright install chromium")
+        
+        if "vk.com" in url.lower() or "vkontakte" in url.lower():
+            print("\n[INFO] ВКонтакте блокирует автоматический парсинг:")
+            print("  - Требуется авторизация")
+            print("  - Используйте официальный API ВКонтакте")
+            print("  - Или попробуйте другой источник")
         
         import traceback
         traceback.print_exc()
