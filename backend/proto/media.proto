@@ -1,0 +1,294 @@
+syntax = "proto3";
+
+package media;
+
+import "common.proto";
+import "storage.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/media";
+
+// ============================================================
+// MEDIA SERVICE
+// ============================================================
+
+service MediaService {
+  // Health check
+  rpc HealthCheck(common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  
+  // Upload image
+  rpc UploadImage(stream UploadImageRequest) returns (UploadImageResponse);
+  
+  // Download image
+  rpc DownloadImage(DownloadImageRequest) returns (stream DownloadImageResponse);
+  
+  // Process image (resize, crop, optimize)
+  rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse);
+  
+  // Generate image using AI
+  rpc GenerateImage(GenerateImageRequest) returns (GenerateImageResponse);
+  
+  // Create infographic from facts
+  rpc CreateInfographic(CreateInfographicRequest) returns (CreateInfographicResponse);
+  
+  // Optimize image for platform
+  rpc OptimizeForPlatform(OptimizeForPlatformRequest) returns (OptimizeForPlatformResponse);
+  
+  // Extract text from image (OCR)
+  rpc ExtractText(ExtractTextRequest) returns (ExtractTextResponse);
+  
+  // Get image metadata
+  rpc GetImageMetadata(GetImageMetadataRequest) returns (GetImageMetadataResponse);
+}
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+message UploadImageRequest {
+  oneof data {
+    ImageMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message ImageMetadata {
+  string filename = 1;
+  string mime_type = 2;
+  int64 file_size = 3;
+  string article_id = 4;
+  string alt_text = 5;
+  string caption = 6;
+}
+
+message UploadImageResponse {
+  bool success = 1;
+  string error = 2;
+  storage.Image image = 3;
+}
+
+message DownloadImageRequest {
+  string image_id = 1;
+  string url = 2;  // Alternative: download from URL
+}
+
+message DownloadImageResponse {
+  bytes chunk = 1;
+}
+
+message ProcessImageRequest {
+  string image_id = 1;
+  bytes image_data = 2;  // Alternative: provide raw data
+  repeated ImageOperation operations = 3;
+}
+
+message ImageOperation {
+  OperationType type = 1;
+  map<string, string> params = 2;
+}
+
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_TYPE_RESIZE = 1;
+  OPERATION_TYPE_CROP = 2;
+  OPERATION_TYPE_ROTATE = 3;
+  OPERATION_TYPE_COMPRESS = 4;
+  OPERATION_TYPE_WATERMARK = 5;
+  OPERATION_TYPE_FILTER = 6;
+  OPERATION_TYPE_FORMAT_CONVERT = 7;
+}
+
+message ProcessImageResponse {
+  bool success = 1;
+  string error = 2;
+  bytes processed_image = 3;
+  storage.Image image = 4;
+  ProcessingMetadata metadata = 5;
+}
+
+message ProcessingMetadata {
+  int32 original_size_bytes = 1;
+  int32 processed_size_bytes = 2;
+  int32 compression_ratio_percent = 3;
+  int32 processing_time_ms = 4;
+}
+
+message GenerateImageRequest {
+  string prompt = 1;
+  ImageGenerationProvider provider = 2;
+  ImageStyle style = 3;
+  ImageSize size = 4;
+  int32 quality = 5;  // 1-100
+  string article_id = 6;
+  repeated string negative_prompts = 7;
+}
+
+enum ImageGenerationProvider {
+  IMAGE_GENERATION_PROVIDER_UNSPECIFIED = 0;
+  IMAGE_GENERATION_PROVIDER_DALLE = 1;
+  IMAGE_GENERATION_PROVIDER_STABLE_DIFFUSION = 2;
+  IMAGE_GENERATION_PROVIDER_MIDJOURNEY = 3;
+  IMAGE_GENERATION_PROVIDER_KANDINSKY = 4;
+}
+
+enum ImageStyle {
+  IMAGE_STYLE_UNSPECIFIED = 0;
+  IMAGE_STYLE_PHOTOREALISTIC = 1;
+  IMAGE_STYLE_ILLUSTRATION = 2;
+  IMAGE_STYLE_ABSTRACT = 3;
+  IMAGE_STYLE_MINIMAL = 4;
+  IMAGE_STYLE_ARTISTIC = 5;
+}
+
+enum ImageSize {
+  IMAGE_SIZE_UNSPECIFIED = 0;
+  IMAGE_SIZE_SQUARE_1024 = 1;   // 1024x1024
+  IMAGE_SIZE_SQUARE_512 = 2;    // 512x512
+  IMAGE_SIZE_LANDSCAPE = 3;     // 1792x1024
+  IMAGE_SIZE_PORTRAIT = 4;      // 1024x1792
+  IMAGE_SIZE_WIDE = 5;          // 1920x1080
+}
+
+message GenerateImageResponse {
+  bool success = 1;
+  string error = 2;
+  storage.Image image = 3;
+  ImageGenerationMetadata metadata = 4;
+}
+
+message ImageGenerationMetadata {
+  ImageGenerationProvider provider = 1;
+  string model = 2;
+  string prompt_used = 3;
+  int32 generation_time_ms = 4;
+  float cost_usd = 5;
+}
+
+message CreateInfographicRequest {
+  string title = 1;
+  repeated InfographicElement elements = 2;
+  InfographicTemplate template = 3;
+  InfographicStyle style = 4;
+}
+
+message InfographicElement {
+  ElementType type = 1;
+  string content = 2;
+  int32 order = 3;
+  string icon = 4;
+  string color = 5;
+}
+
+enum ElementType {
+  ELEMENT_TYPE_UNSPECIFIED = 0;
+  ELEMENT_TYPE_HEADER = 1;
+  ELEMENT_TYPE_FACT = 2;
+  ELEMENT_TYPE_STAT = 3;
+  ELEMENT_TYPE_QUOTE = 4;
+  ELEMENT_TYPE_IMAGE = 5;
+}
+
+enum InfographicTemplate {
+  INFOGRAPHIC_TEMPLATE_UNSPECIFIED = 0;
+  INFOGRAPHIC_TEMPLATE_MODERN = 1;
+  INFOGRAPHIC_TEMPLATE_MINIMAL = 2;
+  INFOGRAPHIC_TEMPLATE_BOLD = 3;
+  INFOGRAPHIC_TEMPLATE_ELEGANT = 4;
+}
+
+enum InfographicStyle {
+  INFOGRAPHIC_STYLE_UNSPECIFIED = 0;
+  INFOGRAPHIC_STYLE_NEWS = 1;
+  INFOGRAPHIC_STYLE_BUSINESS = 2;
+  INFOGRAPHIC_STYLE_TECH = 3;
+  INFOGRAPHIC_STYLE_SOCIAL = 4;
+}
+
+message CreateInfographicResponse {
+  bool success = 1;
+  string error = 2;
+  storage.Image image = 3;
+}
+
+message OptimizeForPlatformRequest {
+  string image_id = 1;
+  bytes image_data = 2;
+  common.Platform platform = 3;
+  PlatformImageType image_type = 4;
+}
+
+enum PlatformImageType {
+  PLATFORM_IMAGE_TYPE_UNSPECIFIED = 0;
+  PLATFORM_IMAGE_TYPE_POST = 1;
+  PLATFORM_IMAGE_TYPE_STORY = 2;
+  PLATFORM_IMAGE_TYPE_COVER = 3;
+  PLATFORM_IMAGE_TYPE_PROFILE = 4;
+}
+
+message OptimizeForPlatformResponse {
+  bool success = 1;
+  string error = 2;
+  bytes optimized_image = 3;
+  storage.Image image = 4;
+  PlatformOptimization optimization = 5;
+}
+
+message PlatformOptimization {
+  int32 width = 1;
+  int32 height = 2;
+  string format = 3;
+  int32 quality = 4;
+  int64 max_file_size = 5;
+  string aspect_ratio = 6;
+}
+
+message ExtractTextRequest {
+  string image_id = 1;
+  bytes image_data = 2;
+  string language = 3;
+}
+
+message ExtractTextResponse {
+  bool success = 1;
+  string error = 2;
+  string text = 3;
+  repeated TextRegion regions = 4;
+  float confidence = 5;
+}
+
+message TextRegion {
+  string text = 1;
+  BoundingBox box = 2;
+  float confidence = 3;
+}
+
+message BoundingBox {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+message GetImageMetadataRequest {
+  string image_id = 1;
+  string url = 2;
+}
+
+message GetImageMetadataResponse {
+  bool success = 1;
+  string error = 2;
+  ImageMetadataInfo metadata = 3;
+}
+
+message ImageMetadataInfo {
+  string filename = 1;
+  string mime_type = 2;
+  int64 file_size_bytes = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string format = 6;
+  string color_space = 7;
+  bool has_alpha = 8;
+  int32 dpi = 9;
+  map<string, string> exif_data = 10;
+}
+

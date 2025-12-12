@@ -1,0 +1,28 @@
+{
+  "name": "ии-ньюсмейкер",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.11.0",
+    "graphql": "^16.9.0",
+    "graphql-ws": "^5.16.0",
+    "recharts": "^3.5.1",
+    "react-dom": "^19.2.1",
+    "lucide-react": "^0.560.0",
+    "react": "^19.2.1",
+    "date-fns": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

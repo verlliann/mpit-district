@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package parser;
+
+import "common.proto";
+import "storage.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/parser";
+
+// ============================================================
+// PARSER SERVICE
+// ============================================================
+
+service ParserService {
+  // Health check
+  rpc HealthCheck(common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  
+  // Parse article from URL
+  rpc ParseArticle(ParseArticleRequest) returns (ParseArticleResponse);
+  
+  // Parse multiple articles (batch)
+  rpc ParseArticles(ParseArticlesRequest) returns (stream ParseArticleResponse);
+  
+  // Test if URL is parseable
+  rpc TestURL(TestURLRequest) returns (TestURLResponse);
+  
+  // Get supported sources
+  rpc GetSupportedSources(GetSupportedSourcesRequest) returns (GetSupportedSourcesResponse);
+}
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+message ParseArticleRequest {
+  string url = 1;
+  bool force_refresh = 2;  // Parse even if already cached
+  bool use_browser = 3;    // Use headless browser for JS sites
+}
+
+message ParseArticleResponse {
+  bool success = 1;
+  storage.Article article = 2;
+  string error = 3;
+  ParsingMetadata metadata = 4;
+}
+
+message ParseArticlesRequest {
+  repeated string urls = 1;
+  bool use_browser = 2;
+}
+
+message TestURLRequest {
+  string url = 1;
+}
+
+message TestURLResponse {
+  bool is_supported = 1;
+  string source = 2;
+  bool requires_browser = 3;
+  string error = 4;
+}
+
+message GetSupportedSourcesRequest {}
+
+message GetSupportedSourcesResponse {
+  repeated SourceConfig sources = 1;
+}
+
+message SourceConfig {
+  string name = 1;
+  string domain = 2;
+  repeated string example_urls = 3;
+  bool requires_browser = 4;
+  bool is_active = 5;
+  ParsingStrategy strategy = 6;
+}
+
+enum ParsingStrategy {
+  PARSING_STRATEGY_UNSPECIFIED = 0;
+  PARSING_STRATEGY_NEWSPAPER = 1;    // Newspaper3k
+  PARSING_STRATEGY_SCRAPY = 2;       // Scrapy with selectors
+  PARSING_STRATEGY_PLAYWRIGHT = 3;   // Headless browser
+  PARSING_STRATEGY_RSS = 4;          // RSS feed
+  PARSING_STRATEGY_API = 5;          // Direct API
+}
+
+message ParsingMetadata {
+  string source = 1;
+  ParsingStrategy strategy = 2;
+  int32 parsing_time_ms = 3;
+  bool from_cache = 4;
+  int32 content_length = 5;
+  int32 images_found = 6;
+  string user_agent = 7;
+}
+

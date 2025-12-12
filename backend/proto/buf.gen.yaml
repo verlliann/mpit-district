@@ -1,0 +1,30 @@
+version: v1
+
+plugins:
+  # Go
+  - plugin: buf.build/protocolbuffers/go
+    out: ../services/storage/internal/pb
+    opt:
+      - paths=source_relative
+  
+  - plugin: buf.build/grpc/go
+    out: ../services/storage/internal/pb
+    opt:
+      - paths=source_relative
+  
+  # Python
+  - plugin: buf.build/protocolbuffers/python
+    out: ../services/parser/src/pb
+  
+  - plugin: buf.build/grpc/python
+    out: ../services/parser/src/pb
+  
+  # TypeScript/JavaScript (for Node.js services)
+  - plugin: buf.build/community/timostamm-protobuf-ts
+    out: ../services/graphql-gateway/src/pb
+    opt:
+      - generate_dependencies
+  
+  - plugin: buf.build/grpc/node
+    out: ../services/publishing/src/pb
+

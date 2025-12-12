@@ -1,0 +1,121 @@
+version: '3.8'
+
+# Development environment - only infrastructure services
+# Use this when developing services locally
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: newsmaker-dev-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: newsmaker
+      POSTGRES_PASSWORD: newsmaker_dev_password
+      POSTGRES_DB: newsmaker
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/migrations:/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsmaker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - newsmaker-dev-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: newsmaker-dev-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_dev_password
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - newsmaker-dev-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: newsmaker-dev-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - newsmaker-dev-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: newsmaker-dev-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: newsmaker
+      RABBITMQ_DEFAULT_PASS: newsmaker_rabbit_pass
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - newsmaker-dev-network
+
+  # PGAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: newsmaker-dev-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@newsmaker.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    networks:
+      - newsmaker-dev-network
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: newsmaker-dev-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:redis_dev_password
+    networks:
+      - newsmaker-dev-network
+    depends_on:
+      - redis
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  minio_dev_data:
+  rabbitmq_dev_data:
+  pgadmin_dev_data:
+
+networks:
+  newsmaker-dev-network:
+    driver: bridge
+

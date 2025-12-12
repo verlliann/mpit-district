@@ -1,0 +1,245 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-newsmaker-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: newsmaker
+      POSTGRES_PASSWORD: newsmaker_dev_password
+      POSTGRES_DB: newsmaker
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=ru_RU.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsmaker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - newsmaker-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: ai-newsmaker-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_dev_password
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - newsmaker-network
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    container_name: ai-newsmaker-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - newsmaker-network
+
+  # Elasticsearch (optional, for search)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ai-newsmaker-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - newsmaker-network
+
+  # RabbitMQ (message broker)
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: ai-newsmaker-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: newsmaker
+      RABBITMQ_DEFAULT_PASS: newsmaker_rabbit_pass
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - newsmaker-network
+
+  # Storage Service (Go)
+  storage-service:
+    build:
+      context: ./services/storage
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-storage
+    ports:
+      - "50055:50055"
+    environment:
+      - DATABASE_URL=postgresql://newsmaker:newsmaker_dev_password@postgres:5432/newsmaker?sslmode=disable
+      - REDIS_URL=redis://:redis_dev_password@redis:6379/0
+      - GRPC_PORT=50055
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+  # Parser Service (Python)
+  parser-service:
+    build:
+      context: ./services/parser
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-parser
+    ports:
+      - "50051:50051"
+    environment:
+      - STORAGE_GRPC_URL=storage-service:50055
+      - REDIS_URL=redis://:redis_dev_password@redis:6379/1
+      - GRPC_PORT=50051
+    depends_on:
+      - storage-service
+      - redis
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+  # AI Engine Service (Python)
+  ai-engine-service:
+    build:
+      context: ./services/ai-engine
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-ai-engine
+    ports:
+      - "50052:50052"
+    environment:
+      - STORAGE_GRPC_URL=storage-service:50055
+      - GRPC_PORT=50052
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - YANDEX_API_KEY=${YANDEX_API_KEY}
+    depends_on:
+      - storage-service
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+  # Media Service (Python)
+  media-service:
+    build:
+      context: ./services/media
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-media
+    ports:
+      - "50053:50053"
+    environment:
+      - STORAGE_GRPC_URL=storage-service:50055
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - GRPC_PORT=50053
+    depends_on:
+      - storage-service
+      - minio
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+  # Publishing Service (Node.js)
+  publishing-service:
+    build:
+      context: ./services/publishing
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-publishing
+    ports:
+      - "50054:50054"
+    environment:
+      - STORAGE_GRPC_URL=storage-service:50055
+      - REDIS_URL=redis://:redis_dev_password@redis:6379/2
+      - RABBITMQ_URL=amqp://newsmaker:newsmaker_rabbit_pass@rabbitmq:5672
+      - GRPC_PORT=50054
+    depends_on:
+      - storage-service
+      - redis
+      - rabbitmq
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+  # GraphQL Gateway (Node.js)
+  graphql-gateway:
+    build:
+      context: ./services/graphql-gateway
+      dockerfile: Dockerfile
+    container_name: ai-newsmaker-graphql
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=development
+      - STORAGE_GRPC_URL=storage-service:50055
+      - PARSER_GRPC_URL=parser-service:50051
+      - AI_ENGINE_GRPC_URL=ai-engine-service:50052
+      - MEDIA_GRPC_URL=media-service:50053
+      - PUBLISHING_GRPC_URL=publishing-service:50054
+      - REDIS_URL=redis://:redis_dev_password@redis:6379/3
+      - JWT_SECRET=your-jwt-secret-change-in-production
+    depends_on:
+      - storage-service
+      - parser-service
+      - ai-engine-service
+      - media-service
+      - publishing-service
+      - redis
+    networks:
+      - newsmaker-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  elasticsearch_data:
+  rabbitmq_data:
+
+networks:
+  newsmaker-network:
+    driver: bridge
+
