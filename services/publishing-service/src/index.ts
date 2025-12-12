@@ -23,7 +23,7 @@ async function main() {
     // Add service implementation
     server.addService(
       publishingProto.PublishingService.service,
-      new PublishingServiceImpl()
+      new PublishingServiceImpl() as any
     );
 
     // Bind and start server

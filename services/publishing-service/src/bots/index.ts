@@ -5,6 +5,7 @@ import { InstagramPlatformBot } from './instagram.bot';
 import { FacebookPlatformBot } from './facebook.bot';
 import { LinkedInPlatformBot } from './linkedin.bot';
 import { TwitterPlatformBot } from './twitter.bot';
+import { YandexZenPlatformBot } from './yandexzen.bot';
 import { Platform } from '../queue/types';
 
 class BotFactory {
@@ -18,6 +19,7 @@ class BotFactory {
     this.bots.set(Platform.FACEBOOK, new FacebookPlatformBot());
     this.bots.set(Platform.LINKEDIN, new LinkedInPlatformBot());
     this.bots.set(Platform.TWITTER, new TwitterPlatformBot());
+    this.bots.set(Platform.YANDEX_ZEN, new YandexZenPlatformBot());
   }
 
   getBot(platform: Platform): IPlatformBot {
@@ -50,6 +52,7 @@ export {
   FacebookPlatformBot,
   LinkedInPlatformBot,
   TwitterPlatformBot,
+  YandexZenPlatformBot,
 };
 
 

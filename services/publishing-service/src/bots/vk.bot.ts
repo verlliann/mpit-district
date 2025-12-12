@@ -1,4 +1,4 @@
-import { VK, API } from 'vk-io';
+import { VK } from 'vk-io';
 import { BasePlatformBot } from './base.bot';
 import { Platform, PublishingJob, PublishResult } from '../queue/types';
 import { logger } from '../utils/logger';
@@ -28,12 +28,13 @@ export class VKPlatformBot extends BasePlatformBot {
 
       // Upload photos if present
       let attachments: string[] = [];
+      const images = job.imageUrls ?? [];
       
-      if (job.imageUrls && job.imageUrls.length > 0) {
+      if (images.length > 0) {
         const uploadedPhotos = await withRetry(async () => {
           const photos = [];
           
-          for (const imageUrl of job.imageUrls) {
+          for (const imageUrl of images) {
             const upload = await vk.upload.wallPhoto({
               source: {
                 value: imageUrl,

@@ -114,10 +114,10 @@ export class LinkedInPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    externalId: string,
-    content: string,
-    imageUrls?: string[],
-    accessToken?: string
+    _externalId: string,
+    _content: string,
+    _imageUrls?: string[],
+    _accessToken?: string
   ): Promise<PublishResult> {
     // LinkedIn doesn't support editing posts via API
     return {

@@ -52,10 +52,19 @@ export class TwitterPlatformBot extends BasePlatformBot {
         );
       }
 
+      const typedMediaIds =
+        mediaIds.length === 0
+          ? undefined
+          : (mediaIds.slice(0, 4) as
+              | [string]
+              | [string, string]
+              | [string, string, string]
+              | [string, string, string, string]);
+
       const result = await withRetry(async () => {
         return await client.v2.tweet({
           text: job.content,
-          media: mediaIds.length > 0 ? { media_ids: mediaIds } : undefined,
+          media: typedMediaIds ? { media_ids: typedMediaIds } : undefined,
         });
       });
 
@@ -75,10 +84,10 @@ export class TwitterPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    externalId: string,
-    content: string,
-    imageUrls?: string[],
-    accessToken?: string
+    _externalId: string,
+    _content: string,
+    _imageUrls?: string[],
+    _accessToken?: string
   ): Promise<PublishResult> {
     // Twitter doesn't support editing tweets (except for Twitter Blue subscribers with limited time)
     return {

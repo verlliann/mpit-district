@@ -7,7 +7,7 @@ import { Platform, PublishingJob } from '../queue/types';
 export class PublishingServiceImpl {
   // Health check
   async HealthCheck(
-    call: ServerUnaryCall<any, any>,
+    _call: ServerUnaryCall<any, any>,
     callback: sendUnaryData<any>
   ): Promise<void> {
     callback(null, {
@@ -38,7 +38,7 @@ export class PublishingServiceImpl {
       };
 
       // Add to queue
-      const queueJob = await getPublishingQueue().add(
+      await getPublishingQueue().add(
         `publish-${request.post_id}`,
         job,
         {
@@ -46,30 +46,14 @@ export class PublishingServiceImpl {
         }
       );
 
-      // Wait for job completion (with timeout)
-      const result = await queueJob.waitUntilFinished(
-        getPublishingQueue().events,
-        30000 // 30 seconds timeout
-      );
-
       callback(null, {
-        success: result.success,
-        error: result.error || '',
-        error_code: result.errorCode || '',
-        post_info: result.success
-          ? {
-              post_id: request.post_id,
-              external_id: result.externalId,
-              external_url: result.externalUrl,
-              published_at: {
-                seconds: Math.floor(result.publishedAt!.getTime() / 1000),
-              },
-              platform: request.platform,
-            }
-          : undefined,
+        success: true,
+        error: '',
+        error_code: '',
+        post_info: undefined, // публикация выполняется асинхронно
         metadata: {
-          attempt_number: queueJob.attemptsMade,
-          processing_time_ms: Date.now() - queueJob.timestamp,
+          attempt_number: 0,
+          processing_time_ms: 0,
           used_fallback: false,
           api_version: 'v1',
         },
@@ -105,31 +89,16 @@ export class PublishingServiceImpl {
             accessToken: postRequest.social_account_id,
           };
 
-          const queueJob = await getPublishingQueue().add(
+          await getPublishingQueue().add(
             `publish-${postRequest.post_id}`,
             job
           );
 
-          const result = await queueJob.waitUntilFinished(
-            getPublishingQueue().events,
-            30000
-          );
-
           call.write({
-            success: result.success,
-            error: result.error || '',
-            error_code: result.errorCode || '',
-            post_info: result.success
-              ? {
-                  post_id: postRequest.post_id,
-                  external_id: result.externalId,
-                  external_url: result.externalUrl,
-                  published_at: {
-                    seconds: Math.floor(result.publishedAt!.getTime() / 1000),
-                  },
-                  platform: postRequest.platform,
-                }
-              : undefined,
+            success: true,
+            error: '',
+            error_code: '',
+            post_info: undefined,
           });
         } catch (error: any) {
           logger.error({ error, postId: postRequest.post_id }, 'Batch publish failed for post');
@@ -394,7 +363,7 @@ export class PublishingServiceImpl {
     } catch (error: any) {
       logger.error({ error }, 'GetPlatformLimits failed');
       callback(null, {
-        platform: request.platform,
+        platform: call.request?.platform ?? '',
         content_limits: {},
         media_limits: {},
         posting_limits: {},

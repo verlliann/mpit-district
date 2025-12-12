@@ -3,7 +3,6 @@ import { BasePlatformBot } from './base.bot';
 import { Platform, PublishingJob, PublishResult } from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
-import axios from 'axios';
 
 export class InstagramPlatformBot extends BasePlatformBot {
   readonly platform = Platform.INSTAGRAM;
@@ -72,10 +71,10 @@ export class InstagramPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    externalId: string,
-    content: string,
-    imageUrls?: string[],
-    accessToken?: string
+    _externalId: string,
+    _content: string,
+    _imageUrls?: string[],
+    _accessToken?: string
   ): Promise<PublishResult> {
     // Instagram doesn't support editing posts
     return {
@@ -132,7 +131,7 @@ export class InstagramPlatformBot extends BasePlatformBot {
           fullName: account.full_name,
           profilePicUrl: account.profile_pic_url,
           isVerified: account.is_verified,
-          followerCount: account.follower_count,
+          followerCount: (account as any).follower_count || 0,
         },
       };
     } catch (error: any) {

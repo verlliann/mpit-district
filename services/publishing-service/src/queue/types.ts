@@ -5,6 +5,7 @@ export enum Platform {
   FACEBOOK = 'FACEBOOK',
   LINKEDIN = 'LINKEDIN',
   TWITTER = 'TWITTER',
+  YANDEX_ZEN = 'YANDEX_ZEN',
 }
 
 export interface PublishingJob {

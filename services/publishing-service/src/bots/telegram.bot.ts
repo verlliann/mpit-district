@@ -77,7 +77,7 @@ export class TelegramPlatformBot extends BasePlatformBot {
   async update(
     externalId: string,
     content: string,
-    imageUrls?: string[],
+    _imageUrls?: string[],
     accessToken?: string
   ): Promise<PublishResult> {
     try {
@@ -124,7 +124,7 @@ export class TelegramPlatformBot extends BasePlatformBot {
       }
 
       await withRetry(async () => {
-        await bot.deleteMessage(chatId, messageId);
+        await bot.deleteMessage(chatId, parseInt(messageId, 10));
       });
 
       return true;

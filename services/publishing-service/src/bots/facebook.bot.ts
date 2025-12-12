@@ -1,5 +1,4 @@
 import axios from 'axios';
-import FormData from 'form-data';
 import { BasePlatformBot } from './base.bot';
 import { Platform, PublishingJob, PublishResult } from '../queue/types';
 import { logger } from '../utils/logger';
@@ -105,7 +104,7 @@ export class FacebookPlatformBot extends BasePlatformBot {
   async update(
     externalId: string,
     content: string,
-    imageUrls?: string[],
+    _imageUrls?: string[],
     accessToken?: string
   ): Promise<PublishResult> {
     try {

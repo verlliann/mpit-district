@@ -71,7 +71,7 @@ export abstract class BasePlatformBot implements IPlatformBot {
   protected handleError(error: any, operation: string): PublishResult {
     return {
       success: false,
-      error: error.message || 'Unknown error',
+      error: error.message || `Unknown error during ${operation}`,
       errorCode: error.code || 'UNKNOWN_ERROR',
     };
   }
