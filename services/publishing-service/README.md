@@ -77,6 +77,27 @@ npm run dev
 - **Protocol Buffers** (API контракты)
 - **Pino** (структурированное логирование)
 
+## 📂 Структура проекта
+
+```
+services/publishing-service/
+├── src/                      # Исходный код gRPC сервиса
+│   ├── bots/                 # Реализации платформ (6 ботов)
+│   ├── queue/                # BullMQ очереди
+│   ├── services/             # gRPC сервис
+│   └── utils/                # Вспомогательные утилиты
+├── utils-metrics/            # Утилиты сбора метрик (отдельно)
+│   ├── collect-vk-metrics.js
+│   ├── vk-metrics-collector.js
+│   ├── telegram_auth_interactive.py
+│   ├── telegram_collect_metrics.py
+│   └── README.md
+├── metrics/                  # Собранные метрики (генерируется)
+├── send-both.js              # Тестовый скрипт отправки
+├── DEVOPS.md                 # DevOps документация
+└── README.md                 # Этот файл
+```
+
 ## 🔧 Разработка
 
 ```bash
@@ -89,6 +110,26 @@ npm run build
 # Production запуск
 npm start
 ```
+
+## 📊 Сбор метрик
+
+Метрики **НЕ входят** в основной gRPC сервис (согласно `publishing.proto`).  
+Это отдельные утилиты в папке `utils-metrics/`.
+
+**Запуск:**
+```bash
+# VK метрики
+cd utils-metrics
+node collect-vk-metrics.js
+
+# Telegram метрики (требует авторизации)
+py telegram_auth_interactive.py  # один раз
+py telegram_collect_metrics.py   # сбор метрик
+```
+
+**Документация:**
+- [VK_METRICS_GUIDE.md](VK_METRICS_GUIDE.md)
+- [TELEGRAM_METRICS_GUIDE.md](TELEGRAM_METRICS_GUIDE.md)
 
 ## 📞 Поддержка
 

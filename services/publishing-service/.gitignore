@@ -40,4 +40,14 @@ coverage/
 *.temp
 .cache/
 
+# Metrics data
+metrics/
+*.session
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 

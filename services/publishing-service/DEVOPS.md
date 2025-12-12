@@ -13,23 +13,32 @@
 5. [Конфигурация](#конфигурация)
 6. [Запуск](#запуск)
 7. [Мониторинг](#мониторинг)
-8. [Troubleshooting](#troubleshooting)
-9. [Production Checklist](#production-checklist)
+8. [Сбор метрик](#сбор-метрик)
+9. [Troubleshooting](#troubleshooting)
+10. [Production Checklist](#production-checklist)
 
 ---
 
 ## 🎯 Обзор сервиса
 
-**Publishing Service** - микросервис для публикации контента на социальные платформы и сбора метрик.
+**Publishing Service** - микросервис для публикации контента на социальные платформы через gRPC API.
 
 ### Возможности
 
 - ✅ Публикация на 6 платформ: Telegram, VK, Instagram, Facebook, LinkedIn, Twitter
 - ✅ Планирование отложенных публикаций
-- ✅ Автоматический сбор метрик (просмотры, лайки, комментарии, engagement)
+- ✅ Редактирование и удаление опубликованных постов
 - ✅ Retry механизм с exponential backoff
-- ✅ Rate limiting
+- ✅ Rate limiting и валидация
 - ✅ Очереди задач (BullMQ + Redis)
+
+### Дополнительно: Утилиты метрик
+
+**Отдельные утилиты** для сбора метрик (НЕ входят в gRPC API):
+- 📊 VK: просмотры, лайки, комментарии, репосты, статистика сообщества
+- 📊 Telegram: просмотры, форварды, реакции, подписчики
+
+См. `utils-metrics/README.md` для подробностей.
 
 ### Технологии
 
@@ -622,6 +631,66 @@ npm start
 ```bash
 redis-cli MONITOR
 ```
+
+---
+
+## 📊 Сбор метрик
+
+### ⚠️ Важно
+
+**Метрики НЕ входят в gRPC API** согласно `publishing.proto`.  
+Это **отдельные утилиты** для аналитики и мониторинга.
+
+### Структура
+
+```
+utils-metrics/
+├── VK метрики (Node.js)
+│   ├── vk-metrics-collector.js    # Класс сборщика
+│   └── collect-vk-metrics.js      # Скрипт запуска
+└── Telegram метрики (Python)
+    ├── telegram_auth_interactive.py    # Авторизация
+    └── telegram_collect_metrics.py     # Скрипт сбора
+```
+
+### Запуск
+
+**VK метрики:**
+```bash
+cd utils-metrics
+node collect-vk-metrics.js
+```
+
+**Telegram метрики:**
+```bash
+cd utils-metrics
+py telegram_auth_interactive.py  # один раз
+py telegram_collect_metrics.py   # сбор метрик
+```
+
+### Результаты
+
+Метрики сохраняются в `metrics/`:
+- `vk_metrics_*.json` / `vk_report_*.txt`
+- `telegram_metrics_*.json` / `telegram_report_*.txt`
+
+### Документация
+
+- **[utils-metrics/README.md](utils-metrics/README.md)** - краткая инструкция
+- **[VK_METRICS_GUIDE.md](VK_METRICS_GUIDE.md)** - полное руководство VK
+- **[TELEGRAM_METRICS_GUIDE.md](TELEGRAM_METRICS_GUIDE.md)** - полное руководство Telegram
+
+### Требования
+
+**VK:**
+- `VK_USER_TOKEN` в `.env` (не Service Token!)
+- `VK_GROUP_ID` в `.env`
+
+**Telegram:**
+- Python 3.7+ + библиотека `telethon`
+- `TELEGRAM_API_ID` и `TELEGRAM_API_HASH` в `.env`
+- Авторизация через телефон (один раз)
+- **VPN** (если MTProto заблокирован)
 
 ---
 
