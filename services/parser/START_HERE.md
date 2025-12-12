@@ -43,7 +43,39 @@ python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. proto/c
 - `proto/parser_pb2.py`
 - `proto/parser_pb2_grpc.py`
 
-## Шаг 3: Запуск тестового клиента
+## Шаг 3: Запуск сервиса
+
+### Запуск gRPC сервера
+
+```bash
+python server.py
+```
+
+Это запустит:
+- **gRPC сервер** на порту `50051` (по умолчанию)
+
+Вы можете изменить порт через переменную окружения:
+```bash
+set GRPC_PORT=50051
+python server.py
+```
+
+### Проверка Health Check
+
+Используйте gRPC клиент для проверки (HealthCheck доступен через gRPC):
+
+```bash
+# Запуск gRPC клиента
+python grpc_client.py
+
+# Или быстрая проверка всех методов
+python grpc_client.py --test-all
+
+# Или проверка конкретного URL
+python grpc_client.py --url https://tass.ru/ekonomika/12345678
+```
+
+## Шаг 4: Запуск тестового клиента
 
 ```bash
 python test_client.py

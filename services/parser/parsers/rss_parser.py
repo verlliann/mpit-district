@@ -44,6 +44,77 @@ class RSSParser(BaseParser):
                 except:
                     pass
             
+            # Извлечение изображений из RSS записи
+            images = []
+            extract_images = options.get('extract_images', True)
+            if extract_images:
+                # Пробуем разные способы извлечения изображений
+                # 1. Из media:content (Media RSS)
+                if hasattr(entry, 'media_content'):
+                    for media in entry.media_content:
+                        if media.get('type', '').startswith('image/'):
+                            images.append({
+                                'url': media.get('url', ''),
+                                'alt_text': media.get('description', '') or '',
+                                'width': media.get('width', 0) or 0,
+                                'height': media.get('height', 0) or 0,
+                            })
+                
+                # 2. Из media:thumbnail
+                if hasattr(entry, 'media_thumbnail'):
+                    for thumb in entry.media_thumbnail:
+                        images.append({
+                            'url': thumb.get('url', ''),
+                            'alt_text': '',
+                            'width': thumb.get('width', 0) or 0,
+                            'height': thumb.get('height', 0) or 0,
+                        })
+                
+                # 3. Из enclosure (если это изображение)
+                if hasattr(entry, 'enclosures'):
+                    for enc in entry.enclosures:
+                        if enc.get('type', '').startswith('image/'):
+                            images.append({
+                                'url': enc.get('href', ''),
+                                'alt_text': '',
+                                'width': 0,
+                                'height': 0,
+                            })
+                
+                # 4. Из content/summary (парсим HTML)
+                content_html = entry.get('content', [{}])[0].get('value', '') if hasattr(entry, 'content') else ''
+                if not content_html:
+                    content_html = entry.get('summary', '')
+                
+                if content_html:
+                    try:
+                        from bs4 import BeautifulSoup
+                        soup = BeautifulSoup(content_html, 'html.parser')
+                        for img in soup.find_all('img'):
+                            src = img.get('src') or img.get('data-src') or ''
+                            if src:
+                                # Нормализация URL
+                                normalized_url = self.normalize_url(src, entry.link if hasattr(entry, 'link') else url)
+                                
+                                # Парсинг размеров
+                                def _parse_int(value):
+                                    try:
+                                        return int(value) if value else 0
+                                    except (ValueError, TypeError):
+                                        return 0
+                                
+                                width = _parse_int(img.get('width'))
+                                height = _parse_int(img.get('height'))
+                                
+                                images.append({
+                                    'url': normalized_url,
+                                    'alt_text': img.get('alt', ''),
+                                    'width': width,
+                                    'height': height,
+                                })
+                    except:
+                        pass
+            
             article = {
                 'title': entry.title if hasattr(entry, 'title') else '',
                 'content': entry.summary if hasattr(entry, 'summary') else '',
@@ -51,7 +122,7 @@ class RSSParser(BaseParser):
                 'author': entry.author if hasattr(entry, 'author') else None,
                 'published_at': published_at,
                 'excerpt': entry.summary if hasattr(entry, 'summary') else '',
-                'images': [],
+                'images': images,
                 'metadata': {
                     'feed_title': feed.feed.title if hasattr(feed.feed, 'title') else '',
                     'feed_link': feed.feed.link if hasattr(feed.feed, 'link') else '',

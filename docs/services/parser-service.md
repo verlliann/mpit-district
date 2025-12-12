@@ -4,7 +4,7 @@
 
 Parser Service отвечает за извлечение контента из веб-страниц новостных сайтов.
 
-**Технологии:** Python 3.11+, FastAPI, Scrapy, Playwright  
+**Технологии:** Python 3.11+, gRPC, Newspaper3k, BeautifulSoup4, Playwright, Feedparser, PDFPlumber  
 **Communication:** gRPC  
 **Port:** 50051
 
@@ -16,22 +16,22 @@ Parser Service отвечает за извлечение контента из 
 ┌──────────────────────────────────────┐
 │         Parser Service               │
 │                                      │
-│  ┌────────────┐  ┌────────────┐    │
-│  │   gRPC     │  │  FastAPI   │    │
-│  │  Server    │  │  (Health)  │    │
-│  └─────┬──────┘  └────────────┘    │
-│        │                            │
-│  ┌─────▼──────────────────┐        │
-│  │   Parser Manager       │        │
-│  └─────┬──────────────────┘        │
-│        │                            │
-│   ┌────┴────┬────────┬────────┐   │
-│   │         │        │        │   │
-│ ┌─▼──┐  ┌──▼─┐  ┌──▼─┐  ┌───▼┐  │
-│ │RSS │  │HTML│  │JS  │  │PDF │  │
-│ │Par │  │Par │  │Par │  │Par │  │
-│ │ser │  │ser │  │ser │  │ser │  │
-│ └────┘  └────┘  └────┘  └────┘  │
+│  ┌────────────┐                     │
+│  │   gRPC     │                     │
+│  │  Server    │                     │
+│  └─────┬──────┘                     │
+│        │                             │
+│  ┌─────▼──────────────────┐         │
+│  │   Parser Manager       │         │
+│  └─────┬──────────────────┘         │
+│        │                             │
+│   ┌────┴────┬────────┬────────┐    │
+│   │         │        │        │    │
+│ ┌─▼──┐  ┌──▼─┐  ┌──▼─┐  ┌───▼┐     │
+│ │RSS │  │HTML│  │JS  │  │PDF │     │
+│ │Par │  │Par │  │Par │  │Par │     │
+│ │ser │  │ser │  │ser │  │ser │     │
+│ └────┘  └────┘  └────┘  └────┘     │
 └──────────────────────────────────────┘
 ```
 
@@ -141,20 +141,47 @@ class HTMLParser(BaseParser):
         }
     
     def _extract_images(self, soup: BeautifulSoup, base_url: str) -> list:
+        """
+        Извлечение изображений из HTML.
+        Поддерживает различные атрибуты: src, data-src, data-lazy-src, data-original, data-url, data-image.
+        Фильтрует иконки и маленькие изображения.
+        """
         images = []
+        seen_urls = set()
+        
         for img in soup.find_all('img'):
-            src = img.get('src') or img.get('data-src')
-            if src:
-                images.append({
-                    'url': self._normalize_url(src, base_url),
-                    'alt_text': img.get('alt', '')
-                })
+            # Пробуем разные атрибуты для src
+            src = (img.get('src') or 
+                   img.get('data-src') or 
+                   img.get('data-lazy-src') or
+                   img.get('data-original') or
+                   img.get('data-url') or
+                   img.get('data-image'))
+            
+            if not src:
+                continue
+            
+            normalized_url = self.normalize_url(src, base_url)
+            
+            # Пропускаем дубликаты и служебные изображения
+            if normalized_url in seen_urls:
+                continue
+            seen_urls.add(normalized_url)
+            
+            images.append({
+                'url': normalized_url,
+                'alt_text': img.get('alt', '') or img.get('title', ''),
+                'width': self._parse_int(img.get('width')),
+                'height': self._parse_int(img.get('height'))
+            })
+        
         return images
 ```
 
 ### 4. JavaScript Parser
 
-Парсинг SPA и динамических сайтов с помощью headless browser.
+Парсинг SPA и динамических сайтов с помощью headless browser (Playwright).
+Поддерживает извлечение контента из iframe (например, Telegram виджеты).
 
 ```python
 # parsers/javascript_parser.py
@@ -167,29 +194,45 @@ class JavaScriptParser(HTMLParser):
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             
-            # Блокировка ненужных ресурсов
-            await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", 
-                           lambda route: route.abort())
+            # Блокировка медиа (опционально)
+            if options.get('block_media', False):
+                await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", 
+                               lambda route: route.abort())
             
             # Загрузка страницы
-            await page.goto(url, wait_until='networkidle')
+            wait_until = options.get('wait_until', 'load')
+            await page.goto(url, wait_until=wait_until, timeout=options.get('timeout_seconds', 60000))
             
-            # Ожидание загрузки контента
-            await page.wait_for_selector('article, .article, main', 
-                                        timeout=10000)
+            # Специальная обработка для Telegram
+            if 't.me' in url:
+                # Ожидание и извлечение из iframe
+                telegram_content, telegram_images = await self._extract_from_telegram_iframe(page)
+            
+            # Прокрутка для lazy loading
+            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            await asyncio.sleep(2)
             
             # Получение HTML
             html = await page.content()
             
             await browser.close()
             
-            # Обработка полученного HTML
-            return await self._parse_html(html, url)
+            # Обработка полученного HTML с извлечением изображений
+            return await self._parse_html(html, url, options, 
+                                         telegram_content=telegram_content,
+                                         telegram_images=telegram_images)
+    
+    async def _extract_from_telegram_iframe(self, page):
+        """Извлечение контента и изображений из Telegram iframe"""
+        # Поиск и переключение на iframe
+        # Извлечение через JavaScript evaluate()
+        # Возвращает (content, images)
+        pass
 ```
 
 ### 5. RSS Parser
 
-Парсинг RSS/Atom лент.
+Парсинг RSS/Atom лент с извлечением изображений из media тегов и HTML контента.
 
 ```python
 # parsers/rss_parser.py
@@ -202,15 +245,60 @@ class RSSParser(BaseParser):
         
         articles = []
         for entry in feed.entries:
+            # Извлечение изображений из media:content, media:thumbnail, enclosure и HTML
+            images = self._extract_images_from_entry(entry, url, options)
+            
             articles.append({
                 'title': entry.title,
                 'content': entry.summary if hasattr(entry, 'summary') else '',
                 'url': entry.link,
                 'author': entry.author if hasattr(entry, 'author') else None,
-                'published_at': entry.published_parsed if hasattr(entry, 'published_parsed') else None
+                'published_at': entry.published_parsed if hasattr(entry, 'published_parsed') else None,
+                'images': images
             })
         
         return articles
+```
+
+### 6. PDF Parser
+
+Парсинг PDF файлов с извлечением текста, метаданных и изображений.
+
+```python
+# parsers/pdf_parser.py
+import pdfplumber
+from parsers.base import BaseParser
+
+class PDFParser(BaseParser):
+    async def parse(self, url: str, options: dict) -> dict:
+        # Скачивание PDF
+        response = requests.get(url, timeout=options.get('timeout_seconds', 30))
+        pdf_bytes = response.content
+        
+        # Извлечение текста и метаданных
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            pages_text = []
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    pages_text.append(text)
+            
+            content = '\n\n'.join(pages_text)
+            metadata = pdf.metadata or {}
+        
+        # Извлечение изображений (если используется PyMuPDF)
+        images = []
+        if options.get('extract_images', True) and HAS_PYMUPDF:
+            images = self._extract_images_from_pdf(pdf_bytes)
+        
+        return {
+            'title': metadata.get('Title', ''),
+            'content': content,
+            'author': metadata.get('Author'),
+            'published_at': None,
+            'images': images,
+            'metadata': metadata
+        }
 ```
 
 ---

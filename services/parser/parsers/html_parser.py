@@ -147,6 +147,7 @@ class HTMLParser(BaseParser):
             
             # Если контент все еще подозрителен, выбрасываем ошибку
             if len(content) < 200 and any(msg in content_lower for msg in block_messages):
+                from exceptions import ContentNotFound
                 raise ContentNotFound(f"Site blocked parsing or requires authentication: {url}")
         
         # Проверка минимальной длины контента
@@ -187,7 +188,9 @@ class HTMLParser(BaseParser):
             src = (img.get('src') or 
                    img.get('data-src') or 
                    img.get('data-lazy-src') or
-                   img.get('data-original'))
+                   img.get('data-original') or
+                   img.get('data-url') or
+                   img.get('data-image'))
             
             if not src:
                 continue
@@ -200,20 +203,37 @@ class HTMLParser(BaseParser):
                 continue
             seen_urls.add(normalized_url)
             
-            # Пропускаем маленькие изображения (вероятно иконки)
+            # Пропускаем служебные изображения (иконки, логотипы, аватары)
+            skip_patterns = ['icon', 'logo', 'avatar', 'favicon', 'sprite', 'button', 'arrow', 'close']
+            url_lower = normalized_url.lower()
+            if any(pattern in url_lower for pattern in skip_patterns):
+                # Но пропускаем только если изображение маленькое
+                width = img.get('width')
+                height = img.get('height')
+                if width and height:
+                    try:
+                        if int(width) < 100 or int(height) < 100:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    # Если нет размеров и это похоже на иконку, пропускаем
+                    continue
+            
+            # Пропускаем маленькие изображения (вероятно иконки), но только если размеры указаны
             width = img.get('width')
             height = img.get('height')
             
             if width and height:
                 try:
-                    if int(width) < 100 or int(height) < 100:
+                    if int(width) < 50 or int(height) < 50:
                         continue
                 except (ValueError, TypeError):
                     pass
             
             images.append({
                 'url': normalized_url,
-                'alt_text': img.get('alt', ''),
+                'alt_text': img.get('alt', '') or img.get('title', ''),
                 'width': self._parse_int(img.get('width')),
                 'height': self._parse_int(img.get('height')),
             })

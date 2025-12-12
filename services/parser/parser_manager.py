@@ -18,6 +18,14 @@ except ImportError:
     HAS_JAVASCRIPT_PARSER = False
     JavaScriptParser = None
 
+# Опциональный импорт PDFParser
+try:
+    from parsers.pdf_parser import PDFParser
+    HAS_PDF_PARSER = True
+except ImportError:
+    HAS_PDF_PARSER = False
+    PDFParser = None
+
 
 class ParserManager:
     """Менеджер для выбора и управления парсерами."""
@@ -37,6 +45,10 @@ class ParserManager:
         if HAS_JAVASCRIPT_PARSER and JavaScriptParser:
             self.parsers['javascript'] = JavaScriptParser()
         
+        # Добавляем PDFParser только если доступен
+        if HAS_PDF_PARSER and PDFParser:
+            self.parsers['pdf'] = PDFParser()
+        
         self.config_loader = SiteConfigLoader(config_path)
     
     def get_parser(self, url: str) -> BaseParser:
@@ -52,6 +64,13 @@ class ParserManager:
         domain = self._extract_domain(url)
         config = self.config_loader.get_config(domain)
         
+        # Проверка на PDF файл
+        if self._is_pdf(url):
+            if HAS_PDF_PARSER and PDFParser and 'pdf' in self.parsers:
+                return self.parsers['pdf']
+            else:
+                raise ImportError("PDF parser not available. Install pdfplumber or pymupdf.")
+        
         # Проверка на RSS/Atom ленту
         if self._is_rss_feed(url):
             return self.parsers['rss']
@@ -63,6 +82,10 @@ class ParserManager:
                 return self.parsers['javascript']
             elif parser_type in self.parsers:
                 return self.parsers[parser_type]
+        
+        # Специальная обработка для Telegram - всегда используем JavaScript парсер
+        if 't.me' in url and HAS_JAVASCRIPT_PARSER and JavaScriptParser:
+            return self.parsers['javascript']
         
         # Fallback to HTML parser
         return self.parsers['html']
@@ -84,7 +107,11 @@ class ParserManager:
         
         # Добавление конфигурации сайта в опции
         if config:
+            # Объединяем опции с конфигурацией (конфигурация имеет приоритет)
             options = {**options, **config}
+            # Если в конфигурации указан use_headless_browser или parser_type=javascript, используем браузер
+            if (config.get('use_headless_browser') or config.get('parser_type') == 'javascript') and not options.get('use_browser'):
+                options['use_browser'] = True
         
         # Попытка парсинга
         try:
@@ -94,7 +121,15 @@ class ParserManager:
             if parser.__class__.__name__ == 'HTMLParser' and HAS_JAVASCRIPT_PARSER and JavaScriptParser:
                 print(f"[INFO] HTML parser failed, trying JavaScript parser...")
                 js_parser = JavaScriptParser()
-                return await js_parser.parse(url, {**options, 'use_headless_browser': True})
+                # Используем те же опции, что и в test_client.py
+                js_options = {
+                    **options,
+                    'use_browser': True,
+                    'use_headless_browser': True,
+                    'wait_until': options.get('wait_until', 'load'),
+                    'block_media': options.get('block_media', False),
+                }
+                return await js_parser.parse(url, js_options)
             else:
                 raise
     
@@ -129,4 +164,17 @@ class ParserManager:
         """
         url_lower = url.lower()
         return any(ext in url_lower for ext in ['/rss', '/feed', '/atom', '.rss', '.xml', 'rss.xml', 'feed.xml'])
+    
+    def _is_pdf(self, url: str) -> bool:
+        """
+        Проверка, является ли URL PDF файлом.
+        
+        Args:
+            url: URL для проверки
+            
+        Returns:
+            True если это PDF файл
+        """
+        url_lower = url.lower()
+        return url_lower.endswith('.pdf') or '/pdf' in url_lower or 'application/pdf' in url_lower
 

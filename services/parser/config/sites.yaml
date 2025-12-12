@@ -70,3 +70,13 @@ yandex.ru:
   wait_for_selector: article
   rate_limit: 1
   use_headless_browser: true
+
+t.me:
+  parser_type: javascript
+  selectors:
+    title: .tgme_widget_message_text, h1
+    content: .tgme_widget_message_text, .tgme_widget_message
+  wait_for_selector: .tgme_widget_message_text, .tgme_widget_message
+  rate_limit: 1
+  use_headless_browser: true
+  wait_timeout: 15000  # Telegram виджет требует больше времени на загрузку

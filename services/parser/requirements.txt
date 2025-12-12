@@ -15,6 +15,11 @@ playwright==1.40.0
 # RSS/Atom feeds
 feedparser==6.0.10
 
+# PDF parsing
+pdfplumber==0.10.3
+# Alternative: PyMuPDF (faster, better image extraction)
+# pymupdf==1.23.8
+
 # Date parsing
 python-dateutil==2.8.2
 
