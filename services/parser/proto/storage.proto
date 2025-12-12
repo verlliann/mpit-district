@@ -1,0 +1,592 @@
+syntax = "proto3";
+
+package storage;
+
+import "common.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/storage";
+
+// ============================================================
+// STORAGE SERVICE
+// ============================================================
+
+service StorageService {
+  // Health check
+  rpc HealthCheck(common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  
+  // Articles
+  rpc SaveArticle(SaveArticleRequest) returns (Article);
+  rpc GetArticle(GetArticleRequest) returns (Article);
+  rpc ListArticles(ListArticlesRequest) returns (ListArticlesResponse);
+  rpc UpdateArticle(UpdateArticleRequest) returns (Article);
+  rpc DeleteArticle(DeleteArticleRequest) returns (common.StatusResponse);
+  rpc SearchArticles(SearchArticlesRequest) returns (ListArticlesResponse);
+  
+  // Facts
+  rpc SaveFacts(SaveFactsRequest) returns (SaveFactsResponse);
+  rpc GetFactsByArticle(GetFactsByArticleRequest) returns (GetFactsResponse);
+  
+  // Entities
+  rpc SaveEntities(SaveEntitiesRequest) returns (SaveEntitiesResponse);
+  rpc GetEntitiesByArticle(GetEntitiesByArticleRequest) returns (GetEntitiesResponse);
+  
+  // Quotes
+  rpc SaveQuotes(SaveQuotesRequest) returns (SaveQuotesResponse);
+  rpc GetQuotesByArticle(GetQuotesByArticleRequest) returns (GetQuotesResponse);
+  
+  // Images
+  rpc SaveImage(SaveImageRequest) returns (Image);
+  rpc GetImage(GetImageRequest) returns (Image);
+  rpc ListImagesByArticle(ListImagesByArticleRequest) returns (ListImagesResponse);
+  
+  // Posts
+  rpc SavePost(SavePostRequest) returns (Post);
+  rpc GetPost(GetPostRequest) returns (Post);
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse);
+  rpc UpdatePost(UpdatePostRequest) returns (Post);
+  rpc DeletePost(DeletePostRequest) returns (common.StatusResponse);
+  rpc ListScheduledPosts(ListScheduledPostsRequest) returns (ListPostsResponse);
+  
+  // Metrics
+  rpc SaveMetrics(SaveMetricsRequest) returns (Metrics);
+  rpc GetLatestMetrics(GetLatestMetricsRequest) returns (Metrics);
+  rpc ListMetricsByPost(ListMetricsByPostRequest) returns (ListMetricsResponse);
+  
+  // Templates
+  rpc SaveTemplate(SaveTemplateRequest) returns (Template);
+  rpc GetTemplate(GetTemplateRequest) returns (Template);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (Template);
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (common.StatusResponse);
+  
+  // Social Accounts
+  rpc SaveSocialAccount(SaveSocialAccountRequest) returns (SocialAccount);
+  rpc GetSocialAccount(GetSocialAccountRequest) returns (SocialAccount);
+  rpc ListSocialAccounts(ListSocialAccountsRequest) returns (ListSocialAccountsResponse);
+  rpc UpdateSocialAccount(UpdateSocialAccountRequest) returns (SocialAccount);
+  rpc DeleteSocialAccount(DeleteSocialAccountRequest) returns (common.StatusResponse);
+  
+  // Users
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+}
+
+// ============================================================
+// ARTICLE MESSAGES
+// ============================================================
+
+message Article {
+  string id = 1;
+  string url = 2;
+  string title = 3;
+  string content = 4;
+  string excerpt = 5;
+  string source = 6;
+  string author = 7;
+  common.Timestamp published_at = 8;
+  common.Timestamp parsed_at = 9;
+  common.Sentiment sentiment = 10;
+  float sentiment_score = 11;
+  string language = 12;
+  int32 word_count = 13;
+  int32 reading_time_minutes = 14;
+  bool is_archived = 15;
+  common.Timestamp created_at = 16;
+  common.Timestamp updated_at = 17;
+  
+  // Related data (optional)
+  repeated Fact facts = 20;
+  repeated Entity entities = 21;
+  repeated Quote quotes = 22;
+  repeated Image images = 23;
+}
+
+message SaveArticleRequest {
+  string url = 1;
+  string title = 2;
+  string content = 3;
+  string excerpt = 4;
+  string source = 5;
+  string author = 6;
+  common.Timestamp published_at = 7;
+  string language = 8;
+}
+
+message GetArticleRequest {
+  string id = 1;
+  string url = 2;  // Alternative lookup
+}
+
+message UpdateArticleRequest {
+  string id = 1;
+  optional string title = 2;
+  optional string content = 3;
+  optional string excerpt = 4;
+  optional common.Sentiment sentiment = 5;
+  optional float sentiment_score = 6;
+  optional bool is_archived = 7;
+}
+
+message DeleteArticleRequest {
+  string id = 1;
+}
+
+message ListArticlesRequest {
+  common.PaginationRequest pagination = 1;
+  optional string source = 2;
+  optional common.Sentiment sentiment = 3;
+  optional bool is_archived = 4;
+  optional common.Timestamp from_date = 5;
+  optional common.Timestamp to_date = 6;
+}
+
+message ListArticlesResponse {
+  repeated Article articles = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message SearchArticlesRequest {
+  string query = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ============================================================
+// FACT MESSAGES
+// ============================================================
+
+message Fact {
+  string id = 1;
+  string article_id = 2;
+  string text = 3;
+  int32 importance = 4;  // 1-10
+  int32 order_index = 5;
+  common.Timestamp created_at = 6;
+}
+
+message SaveFactsRequest {
+  string article_id = 1;
+  repeated FactInput facts = 2;
+}
+
+message FactInput {
+  string text = 1;
+  int32 importance = 2;
+  int32 order_index = 3;
+}
+
+message SaveFactsResponse {
+  repeated Fact facts = 1;
+}
+
+message GetFactsByArticleRequest {
+  string article_id = 1;
+}
+
+message GetFactsResponse {
+  repeated Fact facts = 1;
+}
+
+// ============================================================
+// ENTITY MESSAGES
+// ============================================================
+
+message Entity {
+  string id = 1;
+  string article_id = 2;
+  string name = 3;
+  common.EntityType type = 4;
+  int32 mentions = 5;
+  float confidence = 6;
+  common.Timestamp created_at = 7;
+}
+
+message SaveEntitiesRequest {
+  string article_id = 1;
+  repeated EntityInput entities = 2;
+}
+
+message EntityInput {
+  string name = 1;
+  common.EntityType type = 2;
+  int32 mentions = 3;
+  float confidence = 4;
+}
+
+message SaveEntitiesResponse {
+  repeated Entity entities = 1;
+}
+
+message GetEntitiesByArticleRequest {
+  string article_id = 1;
+}
+
+message GetEntitiesResponse {
+  repeated Entity entities = 1;
+}
+
+// ============================================================
+// QUOTE MESSAGES
+// ============================================================
+
+message Quote {
+  string id = 1;
+  string article_id = 2;
+  string text = 3;
+  string author = 4;
+  int32 order_index = 5;
+  common.Timestamp created_at = 6;
+}
+
+message SaveQuotesRequest {
+  string article_id = 1;
+  repeated QuoteInput quotes = 2;
+}
+
+message QuoteInput {
+  string text = 1;
+  string author = 2;
+  int32 order_index = 3;
+}
+
+message SaveQuotesResponse {
+  repeated Quote quotes = 1;
+}
+
+message GetQuotesByArticleRequest {
+  string article_id = 1;
+}
+
+message GetQuotesResponse {
+  repeated Quote quotes = 1;
+}
+
+// ============================================================
+// IMAGE MESSAGES
+// ============================================================
+
+message Image {
+  string id = 1;
+  string article_id = 2;
+  string url = 3;
+  string thumbnail_url = 4;
+  string original_url = 5;
+  string filename = 6;
+  string mime_type = 7;
+  int64 file_size_bytes = 8;
+  int32 width = 9;
+  int32 height = 10;
+  string storage_bucket = 11;
+  string storage_key = 12;
+  bool is_generated = 13;
+  string generation_prompt = 14;
+  string alt_text = 15;
+  string caption = 16;
+  common.Timestamp created_at = 17;
+}
+
+message SaveImageRequest {
+  string article_id = 1;
+  string url = 2;
+  string thumbnail_url = 3;
+  string original_url = 4;
+  string filename = 5;
+  string mime_type = 6;
+  int64 file_size_bytes = 7;
+  int32 width = 8;
+  int32 height = 9;
+  string storage_bucket = 10;
+  string storage_key = 11;
+  bool is_generated = 12;
+  string generation_prompt = 13;
+  string alt_text = 14;
+  string caption = 15;
+}
+
+message GetImageRequest {
+  string id = 1;
+}
+
+message ListImagesByArticleRequest {
+  string article_id = 1;
+}
+
+message ListImagesResponse {
+  repeated Image images = 1;
+}
+
+// ============================================================
+// POST MESSAGES
+// ============================================================
+
+message Post {
+  string id = 1;
+  string article_id = 2;
+  string user_id = 3;
+  string social_account_id = 4;
+  common.Platform platform = 5;
+  string content = 6;
+  common.PostStyle style = 7;
+  common.PostStatus status = 8;
+  common.Timestamp scheduled_at = 9;
+  common.Timestamp published_at = 10;
+  string external_id = 11;
+  string external_url = 12;
+  string error_message = 13;
+  int32 retry_count = 14;
+  common.Timestamp last_retry_at = 15;
+  common.Timestamp created_at = 16;
+  common.Timestamp updated_at = 17;
+  
+  // Related data (optional)
+  repeated Image images = 20;
+  Metrics metrics = 21;
+}
+
+message SavePostRequest {
+  string article_id = 1;
+  string user_id = 2;
+  string social_account_id = 3;
+  common.Platform platform = 4;
+  string content = 5;
+  common.PostStyle style = 6;
+  common.PostStatus status = 7;
+  optional common.Timestamp scheduled_at = 8;
+  repeated string image_ids = 9;
+}
+
+message GetPostRequest {
+  string id = 1;
+}
+
+message UpdatePostRequest {
+  string id = 1;
+  optional string content = 2;
+  optional common.PostStatus status = 3;
+  optional common.Timestamp scheduled_at = 4;
+  optional common.Timestamp published_at = 5;
+  optional string external_id = 6;
+  optional string external_url = 7;
+  optional string error_message = 8;
+  optional int32 retry_count = 9;
+}
+
+message DeletePostRequest {
+  string id = 1;
+}
+
+message ListPostsRequest {
+  common.PaginationRequest pagination = 1;
+  optional string article_id = 2;
+  optional string user_id = 3;
+  optional common.Platform platform = 4;
+  optional common.PostStatus status = 5;
+  optional common.Timestamp from_date = 6;
+  optional common.Timestamp to_date = 7;
+}
+
+message ListPostsResponse {
+  repeated Post posts = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message ListScheduledPostsRequest {
+  common.Timestamp from_date = 1;
+  common.Timestamp to_date = 2;
+  repeated common.Platform platforms = 3;
+}
+
+// ============================================================
+// METRICS MESSAGES
+// ============================================================
+
+message Metrics {
+  string id = 1;
+  string post_id = 2;
+  int32 views = 3;
+  int32 likes = 4;
+  int32 comments = 5;
+  int32 shares = 6;
+  int32 saves = 7;
+  int32 clicks = 8;
+  int32 reach = 9;
+  int32 impressions = 10;
+  float engagement_rate = 11;
+  common.Timestamp collected_at = 12;
+  common.Timestamp created_at = 13;
+}
+
+message SaveMetricsRequest {
+  string post_id = 1;
+  int32 views = 2;
+  int32 likes = 3;
+  int32 comments = 4;
+  int32 shares = 5;
+  int32 saves = 6;
+  int32 clicks = 7;
+  int32 reach = 8;
+  int32 impressions = 9;
+}
+
+message GetLatestMetricsRequest {
+  string post_id = 1;
+}
+
+message ListMetricsByPostRequest {
+  string post_id = 1;
+  optional common.Timestamp from_date = 2;
+  optional common.Timestamp to_date = 3;
+}
+
+message ListMetricsResponse {
+  repeated Metrics metrics = 1;
+}
+
+// ============================================================
+// TEMPLATE MESSAGES
+// ============================================================
+
+message Template {
+  string id = 1;
+  string user_id = 2;
+  string name = 3;
+  string description = 4;
+  common.Platform platform = 5;
+  common.PostStyle style = 6;
+  string content = 7;
+  repeated string variables = 8;
+  repeated string tags = 9;
+  int32 usage_count = 10;
+  common.Timestamp last_used_at = 11;
+  bool is_public = 12;
+  common.Timestamp created_at = 13;
+  common.Timestamp updated_at = 14;
+}
+
+message SaveTemplateRequest {
+  string user_id = 1;
+  string name = 2;
+  string description = 3;
+  common.Platform platform = 4;
+  common.PostStyle style = 5;
+  string content = 6;
+  repeated string tags = 7;
+  bool is_public = 8;
+}
+
+message GetTemplateRequest {
+  string id = 1;
+}
+
+message UpdateTemplateRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string content = 4;
+  optional int32 usage_count = 5;
+}
+
+message DeleteTemplateRequest {
+  string id = 1;
+}
+
+message ListTemplatesRequest {
+  common.PaginationRequest pagination = 1;
+  optional string user_id = 2;
+  optional common.Platform platform = 3;
+  optional bool is_public = 4;
+}
+
+message ListTemplatesResponse {
+  repeated Template templates = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+// ============================================================
+// SOCIAL ACCOUNT MESSAGES
+// ============================================================
+
+message SocialAccount {
+  string id = 1;
+  string user_id = 2;
+  common.Platform platform = 3;
+  string username = 4;
+  string display_name = 5;
+  string avatar = 6;
+  string external_id = 7;
+  string access_token = 8;  // Encrypted
+  string refresh_token = 9;  // Encrypted
+  common.Timestamp token_expires_at = 10;
+  bool is_active = 11;
+  common.Timestamp connected_at = 12;
+  common.Timestamp last_used_at = 13;
+  common.Timestamp created_at = 14;
+  common.Timestamp updated_at = 15;
+}
+
+message SaveSocialAccountRequest {
+  string user_id = 1;
+  common.Platform platform = 2;
+  string username = 3;
+  string display_name = 4;
+  string avatar = 5;
+  string external_id = 6;
+  string access_token = 7;
+  string refresh_token = 8;
+  common.Timestamp token_expires_at = 9;
+}
+
+message GetSocialAccountRequest {
+  string id = 1;
+}
+
+message UpdateSocialAccountRequest {
+  string id = 1;
+  optional string access_token = 2;
+  optional string refresh_token = 3;
+  optional common.Timestamp token_expires_at = 4;
+  optional bool is_active = 5;
+  optional common.Timestamp last_used_at = 6;
+}
+
+message DeleteSocialAccountRequest {
+  string id = 1;
+}
+
+message ListSocialAccountsRequest {
+  string user_id = 1;
+  optional common.Platform platform = 2;
+  optional bool is_active = 3;
+}
+
+message ListSocialAccountsResponse {
+  repeated SocialAccount accounts = 1;
+}
+
+// ============================================================
+// USER MESSAGES
+// ============================================================
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  common.UserRole role = 4;
+  string avatar = 5;
+  bool is_active = 6;
+  common.Timestamp created_at = 7;
+  common.Timestamp updated_at = 8;
+  common.Timestamp last_login_at = 9;
+}
+
+message GetUserRequest {
+  string id = 1;
+  string email = 2;  // Alternative lookup
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string avatar = 3;
+  optional common.Timestamp last_login_at = 4;
+}
+

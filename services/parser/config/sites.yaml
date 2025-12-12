@@ -1,0 +1,72 @@
+# Конфигурации для известных новостных сайтов
+
+tass.ru:
+  parser_type: html
+  selectors:
+    title: h1.ds_doc-header
+    content: .text-block
+    author: .ds_doc-author
+    date: time.ds_doc-header_date
+  rate_limit: 2
+
+ria.ru:
+  parser_type: html
+  selectors:
+    title: .article__title
+    content: .article__body
+    author: .article__author-name
+    date: .article__info-date
+  rate_limit: 2
+
+interfax.ru:
+  parser_type: javascript
+  selectors:
+    title: h1
+    content: article.article
+  wait_for_selector: article.article
+  rate_limit: 1
+
+rbc.ru:
+  parser_type: html
+  selectors:
+    title: .article__header__title
+    content: .article__text
+    author: .article__authors__author
+    date: .article__header__date
+  rate_limit: 2
+
+lenta.ru:
+  parser_type: html
+  selectors:
+    title: h1.b-topic__title
+    content: .b-text
+    author: .b-topic__info__author
+    date: .b-topic__info__date
+  rate_limit: 2
+
+kommersant.ru:
+  parser_type: html
+  selectors:
+    title: h1.article_header__title
+    content: .article_text
+    author: .article_header__author
+    date: .article_header__date
+  rate_limit: 2
+
+dzen.ru:
+  parser_type: javascript
+  selectors:
+    title: h1, .article-title, [data-testid="article-title"]
+    content: article, .zen-ui-article-body, [data-testid="article-body"]
+  wait_for_selector: article, .zen-ui-article-body
+  rate_limit: 1
+  use_headless_browser: true
+
+yandex.ru:
+  parser_type: javascript
+  selectors:
+    title: h1
+    content: article, .article-body
+  wait_for_selector: article
+  rate_limit: 1
+  use_headless_browser: true
