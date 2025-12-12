@@ -3,6 +3,8 @@ import { Card, Badge, Modal, Input, Button } from '../components/ui';
 import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { Platform } from '../types';
+import { useQuery } from '@apollo/client';
+import { GET_SCHEDULED_POSTS } from '../services/graphql/queries';
 
 export const CalendarView: React.FC = () => {
   const days = Array.from({ length: 35 }, (_, i) => i + 1); // Mock calendar days

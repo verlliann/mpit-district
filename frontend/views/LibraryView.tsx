@@ -111,17 +111,14 @@ export const LibraryView: React.FC = () => {
     }
   })) || [];
 
-  const [posts, setPosts] = useState(graphqlPosts.length > 0 ? graphqlPosts : FALLBACK_POSTS);
+  // Используем данные ТОЛЬКО из GraphQL, без локального state
+  const posts = graphqlPosts.length > 0 ? graphqlPosts : FALLBACK_POSTS;
+  
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
-
-  // Обновляем posts когда приходят данные
-  React.useEffect(() => {
-    if (graphqlPosts.length > 0) {
-      setPosts(graphqlPosts);
-    }
-  }, [data]);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [postToEdit, setPostToEdit] = useState<any>(null);
+  const [editContent, setEditContent] = useState('');
 
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -134,13 +131,36 @@ export const LibraryView: React.FC = () => {
     if (postToDelete) {
       try {
         await deletePost({ variables: { id: postToDelete } });
-        setPosts(posts.filter(p => p.id !== postToDelete));
+        // Не обновляем локальный state - данные обновятся из GraphQL cache
         setPostToDelete(null);
       } catch (err: any) {
         console.error('Ошибка удаления:', err);
         alert('Не удалось удалить пост: ' + err.message);
       }
     }
+  };
+
+  const handleEdit = async () => {
+    if (postToEdit && editContent) {
+      try {
+        await updatePost({ 
+          variables: { 
+            id: postToEdit.id, 
+            input: { content: editContent } 
+          } 
+        });
+        setPostToEdit(null);
+        setEditContent('');
+      } catch (err: any) {
+        console.error('Ошибка редактирования:', err);
+        alert('Не удалось обновить пост: ' + err.message);
+      }
+    }
+  };
+
+  const openEditModal = (post: any) => {
+    setPostToEdit(post);
+    setEditContent(post.excerpt.replace('...', ''));
   };
 
   const getStatusVariant = (status: PostStatus) => {
@@ -236,7 +256,7 @@ export const LibraryView: React.FC = () => {
                <img src={post.image} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
                   <div className="flex gap-2">
-                     <button className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white/40 transition-colors"><Edit size={14} /></button>
+                     <button onClick={() => openEditModal(post)} className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white/40 transition-colors"><Edit size={14} /></button>
                      <button 
                       onClick={() => setPostToDelete(post.id)}
                       className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-red-500/60 transition-colors"
@@ -289,6 +309,38 @@ export const LibraryView: React.FC = () => {
             <p>Ничего не найдено по вашему запросу</p>
          </div>
       )}
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={!!postToEdit}
+        onClose={() => {
+          setPostToEdit(null);
+          setEditContent('');
+        }}
+        title="Редактировать публикацию"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => {
+              setPostToEdit(null);
+              setEditContent('');
+            }}>Отмена</Button>
+            <Button variant="primary" onClick={handleEdit}>Сохранить</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Содержимое поста</label>
+            <textarea
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              rows={6}
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="Введите текст публикации..."
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal

@@ -36,6 +36,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     // Simulate OAuth redirect/processing
     setTimeout(() => {
       setIsLoading(false);
+      // Сохраняем токен
+      localStorage.setItem('auth_token', 'mock-yandex-token-' + Date.now());
       addToast('Яндекс ID подключен', 'success', 'Авторизация прошла успешно');
       onLogin();
     }, 2000);

@@ -133,10 +133,6 @@ export const GET_POSTS = gql`
           title
           source
         }
-        user {
-          id
-          name
-        }
         createdAt
         updatedAt
       }
@@ -183,11 +179,6 @@ export const GET_POST = gql`
         title
         url
         source
-      }
-      user {
-        id
-        name
-        email
       }
       createdAt
       updatedAt
