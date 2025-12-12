@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package publishing;
+
+import "common.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/publishing";
+
+// ============================================================
+// PUBLISHING SERVICE
+// ============================================================
+
+service PublishingService {
+  // Health check
+  rpc HealthCheck(common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  
+  // Publish single post
+  rpc PublishPost(PublishPostRequest) returns (PublishPostResponse);
+  
+  // Publish multiple posts (batch)
+  rpc PublishBatch(PublishBatchRequest) returns (stream PublishPostResponse);
+  
+  // Schedule post for later
+  rpc SchedulePost(SchedulePostRequest) returns (SchedulePostResponse);
+  
+  // Cancel scheduled post
+  rpc CancelScheduledPost(CancelScheduledPostRequest) returns (common.StatusResponse);
+  
+  // Update/Edit published post
+  rpc UpdatePublishedPost(UpdatePublishedPostRequest) returns (UpdatePublishedPostResponse);
+  
+  // Delete published post
+  rpc DeletePublishedPost(DeletePublishedPostRequest) returns (common.StatusResponse);
+  
+  // Test platform connection
+  rpc TestConnection(TestConnectionRequest) returns (TestConnectionResponse);
+  
+  // Get platform limits
+  rpc GetPlatformLimits(GetPlatformLimitsRequest) returns (GetPlatformLimitsResponse);
+}
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+message PublishPostRequest {
+  string post_id = 1;
+  string social_account_id = 2;
+  common.Platform platform = 3;
+  string content = 4;
+  repeated string image_urls = 5;
+  repeated string video_urls = 6;
+  PublishOptions options = 7;
+}
+
+message PublishOptions {
+  bool disable_comments = 1;
+  bool disable_notifications = 2;
+  string link_preview_url = 3;
+  repeated string hashtags = 4;
+  repeated string mentions = 5;
+  LocationData location = 6;
+  map<string, string> platform_specific = 7;
+}
+
+message LocationData {
+  double latitude = 1;
+  double longitude = 2;
+  string name = 3;
+}
+
+message PublishPostResponse {
+  bool success = 1;
+  string error = 2;
+  string error_code = 3;
+  PublishedPostInfo post_info = 4;
+  PublishingMetadata metadata = 5;
+}
+
+message PublishedPostInfo {
+  string post_id = 1;
+  string external_id = 2;
+  string external_url = 3;
+  common.Timestamp published_at = 4;
+  common.Platform platform = 5;
+}
+
+message PublishingMetadata {
+  int32 attempt_number = 1;
+  int32 processing_time_ms = 2;
+  bool used_fallback = 3;
+  string api_version = 4;
+}
+
+message PublishBatchRequest {
+  repeated PublishPostRequest posts = 1;
+  bool continue_on_error = 2;
+  int32 max_concurrent = 3;
+}
+
+message SchedulePostRequest {
+  string post_id = 1;
+  common.Timestamp scheduled_at = 2;
+  PublishPostRequest publish_request = 3;
+}
+
+message SchedulePostResponse {
+  bool success = 1;
+  string error = 2;
+  string job_id = 3;
+  common.Timestamp scheduled_at = 4;
+}
+
+message CancelScheduledPostRequest {
+  string post_id = 1;
+  string job_id = 2;
+}
+
+message UpdatePublishedPostRequest {
+  string post_id = 1;
+  string external_id = 2;
+  common.Platform platform = 3;
+  string social_account_id = 4;
+  string new_content = 5;
+  repeated string new_image_urls = 6;
+}
+
+message UpdatePublishedPostResponse {
+  bool success = 1;
+  string error = 2;
+  bool platform_supports_edit = 3;
+  common.Timestamp updated_at = 4;
+}
+
+message DeletePublishedPostRequest {
+  string post_id = 1;
+  string external_id = 2;
+  common.Platform platform = 3;
+  string social_account_id = 4;
+}
+
+message TestConnectionRequest {
+  string social_account_id = 1;
+  common.Platform platform = 2;
+  string access_token = 3;
+}
+
+message TestConnectionResponse {
+  bool success = 1;
+  string error = 2;
+  ConnectionInfo connection_info = 3;
+}
+
+message ConnectionInfo {
+  bool is_valid = 1;
+  bool token_expired = 2;
+  common.Timestamp token_expires_at = 3;
+  AccountInfo account_info = 4;
+  repeated string permissions = 5;
+  RateLimitInfo rate_limit = 6;
+}
+
+message AccountInfo {
+  string external_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string avatar_url = 4;
+  int32 followers_count = 5;
+  bool is_verified = 6;
+}
+
+message RateLimitInfo {
+  int32 limit = 1;
+  int32 remaining = 2;
+  common.Timestamp reset_at = 3;
+}
+
+message GetPlatformLimitsRequest {
+  common.Platform platform = 1;
+}
+
+message GetPlatformLimitsResponse {
+  common.Platform platform = 1;
+  ContentLimits content_limits = 2;
+  MediaLimits media_limits = 3;
+  PostingLimits posting_limits = 4;
+}
+
+message ContentLimits {
+  int32 max_text_length = 1;
+  int32 max_hashtags = 2;
+  int32 max_mentions = 3;
+  int32 max_links = 4;
+  bool supports_markdown = 5;
+  bool supports_html = 6;
+}
+
+message MediaLimits {
+  int32 max_images = 1;
+  int32 max_videos = 2;
+  int64 max_image_size_bytes = 3;
+  int64 max_video_size_bytes = 4;
+  repeated string supported_image_formats = 5;
+  repeated string supported_video_formats = 6;
+  ImageDimensions recommended_image_dimensions = 7;
+}
+
+message ImageDimensions {
+  int32 min_width = 1;
+  int32 min_height = 2;
+  int32 max_width = 3;
+  int32 max_height = 4;
+  string aspect_ratio = 5;
+}
+
+message PostingLimits {
+  int32 posts_per_hour = 1;
+  int32 posts_per_day = 2;
+  int32 min_interval_seconds = 3;
+  bool supports_scheduling = 4;
+  bool supports_editing = 5;
+  int32 edit_time_limit_minutes = 6;
+}
+
+// ============================================================
+// ERROR CODES
+// ============================================================
+
+enum PublishingErrorCode {
+  PUBLISHING_ERROR_CODE_UNSPECIFIED = 0;
+  PUBLISHING_ERROR_CODE_INVALID_TOKEN = 1;
+  PUBLISHING_ERROR_CODE_TOKEN_EXPIRED = 2;
+  PUBLISHING_ERROR_CODE_RATE_LIMIT = 3;
+  PUBLISHING_ERROR_CODE_CONTENT_TOO_LONG = 4;
+  PUBLISHING_ERROR_CODE_INVALID_MEDIA = 5;
+  PUBLISHING_ERROR_CODE_NETWORK_ERROR = 6;
+  PUBLISHING_ERROR_CODE_PLATFORM_ERROR = 7;
+  PUBLISHING_ERROR_CODE_PERMISSION_DENIED = 8;
+  PUBLISHING_ERROR_CODE_POST_NOT_FOUND = 9;
+  PUBLISHING_ERROR_CODE_ACCOUNT_SUSPENDED = 10;
+  PUBLISHING_ERROR_CODE_SPAM_DETECTED = 11;
+}
+
