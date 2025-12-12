@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/ai-newsmaker/backend/proto/common";
+
+// Common timestamp
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// Pagination request
+message PaginationRequest {
+  int32 limit = 1;   // Max 100
+  int32 offset = 2;
+}
+
+// Pagination response
+message PaginationResponse {
+  int32 total_count = 1;
+  int32 offset = 2;
+  int32 limit = 3;
+  bool has_next_page = 4;
+  bool has_previous_page = 5;
+}
+
+// Status response
+message StatusResponse {
+  bool success = 1;
+  string message = 2;
+  string error_code = 3;
+}
+
+// Sentiment enum
+enum Sentiment {
+  SENTIMENT_UNSPECIFIED = 0;
+  SENTIMENT_POSITIVE = 1;
+  SENTIMENT_NEUTRAL = 2;
+  SENTIMENT_NEGATIVE = 3;
+}
+
+// Platform enum
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_TELEGRAM = 1;
+  PLATFORM_VK = 2;
+  PLATFORM_FACEBOOK = 3;
+  PLATFORM_INSTAGRAM = 4;
+  PLATFORM_LINKEDIN = 5;
+  PLATFORM_TWITTER = 6;
+  PLATFORM_TIKTOK = 7;
+  PLATFORM_YANDEX_ZEN = 8;
+  PLATFORM_OK_RU = 9;
+}
+
+// Post status enum
+enum PostStatus {
+  POST_STATUS_UNSPECIFIED = 0;
+  POST_STATUS_DRAFT = 1;
+  POST_STATUS_PENDING = 2;
+  POST_STATUS_SCHEDULED = 3;
+  POST_STATUS_PUBLISHED = 4;
+  POST_STATUS_FAILED = 5;
+  POST_STATUS_CANCELLED = 6;
+}
+
+// Post style enum
+enum PostStyle {
+  POST_STYLE_UNSPECIFIED = 0;
+  POST_STYLE_NEUTRAL = 1;
+  POST_STYLE_FORMAL = 2;
+  POST_STYLE_ENGAGING = 3;
+  POST_STYLE_INFORMAL = 4;
+  POST_STYLE_BUSINESS = 5;
+  POST_STYLE_CREATIVE = 6;
+}
+
+// Entity type enum
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_PERSON = 1;
+  ENTITY_TYPE_ORGANIZATION = 2;
+  ENTITY_TYPE_LOCATION = 3;
+  ENTITY_TYPE_EVENT = 4;
+  ENTITY_TYPE_PRODUCT = 5;
+  ENTITY_TYPE_OTHER = 6;
+}
+
+// User role enum
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_ADMIN = 1;
+  USER_ROLE_EDITOR = 2;
+  USER_ROLE_VIEWER = 3;
+}
+
+// Health check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string service = 2;
+  string version = 3;
+  Timestamp timestamp = 4;
+}
+

@@ -1,0 +1,34 @@
+# gRPC
+grpcio==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.2
+
+# Image processing
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+
+# MinIO client
+minio==7.2.3
+
+# Async support
+aiohttp==3.9.1
+aiofiles==23.2.1
+
+# AI Image generation
+openai==1.6.1
+httpx==0.26.0
+
+# OCR
+pytesseract==0.3.10
+
+# Utils
+python-dotenv==1.0.0
+structlog==24.1.0
+
+# Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# UUID
+uuid==1.30
+

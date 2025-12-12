@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package storage;
+
+import "common.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/storage";
+
+// ============================================================
+// STORAGE SERVICE - Data Types
+// ============================================================
+
+// Fact extracted from article
+message Fact {
+  string id = 1;
+  string content = 2;
+  int32 importance = 3;         // 1-10
+  string source_text = 4;       // Original text snippet
+  float confidence = 5;         // 0-1
+}
+
+// Named Entity
+message Entity {
+  string id = 1;
+  string name = 2;
+  common.EntityType type = 3;
+  string normalized_name = 4;
+}
+
+// Quote from article
+message Quote {
+  string id = 1;
+  string text = 2;
+  string author = 3;
+  string context = 4;
+  bool is_direct = 5;           // Direct vs indirect quote
+}
+
+// Image metadata
+message Image {
+  string id = 1;
+  string url = 2;
+  string storage_path = 3;
+  string thumbnail_url = 4;
+  string mime_type = 5;
+  int64 file_size_bytes = 6;
+  int32 width = 7;
+  int32 height = 8;
+  string alt_text = 9;
+  string caption = 10;
+  ImageSource source = 11;
+  common.Timestamp created_at = 12;
+}
+
+// Image source info
+enum ImageSource {
+  IMAGE_SOURCE_UNSPECIFIED = 0;
+  IMAGE_SOURCE_UPLOAD = 1;
+  IMAGE_SOURCE_URL = 2;
+  IMAGE_SOURCE_GENERATED = 3;
+  IMAGE_SOURCE_SCREENSHOT = 4;
+}
+
+// Article data
+message Article {
+  string id = 1;
+  string user_id = 2;
+  string url = 3;
+  string title = 4;
+  string content = 5;
+  string summary = 6;
+  common.Sentiment sentiment = 7;
+  repeated Fact facts = 8;
+  repeated Entity entities = 9;
+  repeated Quote quotes = 10;
+  repeated Image images = 11;
+  common.Timestamp created_at = 12;
+  common.Timestamp updated_at = 13;
+}
+
+// Post data
+message Post {
+  string id = 1;
+  string article_id = 2;
+  common.Platform platform = 3;
+  string content = 4;
+  common.PostStatus status = 5;
+  common.PostStyle style = 6;
+  repeated string hashtags = 7;
+  repeated Image images = 8;
+  common.Timestamp created_at = 9;
+  common.Timestamp scheduled_at = 10;
+  common.Timestamp published_at = 11;
+}
+
