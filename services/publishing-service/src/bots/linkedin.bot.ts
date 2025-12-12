@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
 
@@ -114,10 +120,10 @@ export class LinkedInPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    _externalId: string,
-    _content: string,
-    _imageUrls?: string[],
-    _accessToken?: string
+    externalId: string,
+    content: string,
+    imageUrls?: string[],
+    accessToken?: string
   ): Promise<PublishResult> {
     // LinkedIn doesn't support editing posts via API
     return {
@@ -148,11 +154,7 @@ export class LinkedInPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const response = await axios.get(`${this.baseUrl}/me`, {
         headers: {
@@ -162,27 +164,57 @@ export class LinkedInPlatformBot extends BasePlatformBot {
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: response.data.id,
-          firstName: response.data.localizedFirstName,
-          lastName: response.data.localizedLastName,
+          externalId: response.data.id,
+          username: response.data.id,
+          displayName: `${response.data.localizedFirstName} ${response.data.localizedLastName}`,
+          isVerified: false,
         },
+        permissions: ['w_member_social', 'r_basicprofile'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.response?.status === 401,
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 3000,
-      maxImages: 9,
-      maxVideos: 1,
-      supportsEditing: false,
-      supportsScheduling: false,
+      contentLimits: {
+        maxTextLength: 3000,
+        maxHashtags: 3,
+        maxMentions: 10,
+        maxLinks: 5,
+        supportsMarkdown: false,
+        supportsHtml: false,
+      },
+      mediaLimits: {
+        maxImages: 9,
+        maxVideos: 1,
+        maxImageSizeBytes: 10 * 1024 * 1024, // 10 MB
+        maxVideoSizeBytes: 5 * 1024 * 1024 * 1024, // 5 GB
+        supportedImageFormats: ['jpg', 'jpeg', 'png', 'gif'],
+        supportedVideoFormats: ['mp4', 'mov', 'avi'],
+        recommendedImageDimensions: {
+          minWidth: 552,
+          minHeight: 276,
+          maxWidth: 1200,
+          maxHeight: 627,
+          aspectRatio: '1.91:1',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 25,
+        postsPerDay: 100,
+        minIntervalSeconds: 30,
+        supportsScheduling: false,
+        supportsEditing: false,
+        editTimeLimitMinutes: 0,
+      },
     };
   }
 }

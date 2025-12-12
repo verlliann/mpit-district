@@ -1,6 +1,12 @@
-import { VK } from 'vk-io';
+import { VK, API } from 'vk-io';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
 
@@ -28,13 +34,12 @@ export class VKPlatformBot extends BasePlatformBot {
 
       // Upload photos if present
       let attachments: string[] = [];
-      const images = job.imageUrls ?? [];
       
-      if (images.length > 0) {
+      if (job.imageUrls && job.imageUrls.length > 0) {
         const uploadedPhotos = await withRetry(async () => {
           const photos = [];
           
-          for (const imageUrl of images) {
+          for (const imageUrl of job.imageUrls) {
             const upload = await vk.upload.wallPhoto({
               source: {
                 value: imageUrl,
@@ -164,38 +169,64 @@ export class VKPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const vk = this.getClient(accessToken);
       const [user] = await vk.api.users.get({});
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          externalId: user.id.toString(),
+          username: `id${user.id}`,
+          displayName: `${user.first_name} ${user.last_name}`,
+          isVerified: false,
         },
+        permissions: ['wall', 'photos', 'groups'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.message?.includes('token') || error.message?.includes('access_denied'),
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 16384, // ~16k characters for wall posts
-      maxImages: 10,
-      maxVideos: 10,
-      supportsEditing: true,
-      supportsScheduling: true,
+      contentLimits: {
+        maxTextLength: 16384, // ~16k characters for wall posts
+        maxHashtags: 100,
+        maxMentions: 100,
+        maxLinks: 10,
+        supportsMarkdown: false,
+        supportsHtml: false,
+      },
+      mediaLimits: {
+        maxImages: 10,
+        maxVideos: 10,
+        maxImageSizeBytes: 50 * 1024 * 1024, // 50 MB
+        maxVideoSizeBytes: 2 * 1024 * 1024 * 1024, // 2 GB
+        supportedImageFormats: ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
+        supportedVideoFormats: ['mp4', 'avi', 'mov', 'flv', '3gp', 'mpeg', 'wmv'],
+        recommendedImageDimensions: {
+          minWidth: 200,
+          minHeight: 200,
+          maxWidth: 7000,
+          maxHeight: 7000,
+          aspectRatio: '16:9',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 50,
+        postsPerDay: 500,
+        minIntervalSeconds: 3,
+        supportsScheduling: true,
+        supportsEditing: true,
+        editTimeLimitMinutes: 1440, // 24 hours
+      },
     };
   }
 }

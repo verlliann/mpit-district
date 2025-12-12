@@ -1,6 +1,12 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
 
@@ -77,7 +83,7 @@ export class TelegramPlatformBot extends BasePlatformBot {
   async update(
     externalId: string,
     content: string,
-    _imageUrls?: string[],
+    imageUrls?: string[],
     accessToken?: string
   ): Promise<PublishResult> {
     try {
@@ -124,7 +130,7 @@ export class TelegramPlatformBot extends BasePlatformBot {
       }
 
       await withRetry(async () => {
-        await bot.deleteMessage(chatId, parseInt(messageId, 10));
+        await bot.deleteMessage(chatId, messageId);
       });
 
       return true;
@@ -134,39 +140,64 @@ export class TelegramPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const bot = this.getBot(accessToken);
       const me = await bot.getMe();
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: me.id,
-          username: me.username,
-          firstName: me.first_name,
-          isBot: me.is_bot,
+          externalId: me.id.toString(),
+          username: me.username || '',
+          displayName: me.first_name,
+          isVerified: false,
         },
+        permissions: ['send_messages', 'edit_messages', 'delete_messages'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.message?.includes('token') || error.message?.includes('Unauthorized'),
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 4096,
-      maxImages: 10,
-      maxVideos: 1,
-      supportsEditing: true,
-      supportsScheduling: false, // Telegram Bot API doesn't support native scheduling
+      contentLimits: {
+        maxTextLength: 4096,
+        maxHashtags: 50,
+        maxMentions: 50,
+        maxLinks: 10,
+        supportsMarkdown: true,
+        supportsHtml: true,
+      },
+      mediaLimits: {
+        maxImages: 10,
+        maxVideos: 1,
+        maxImageSizeBytes: 10 * 1024 * 1024, // 10 MB
+        maxVideoSizeBytes: 50 * 1024 * 1024, // 50 MB
+        supportedImageFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        supportedVideoFormats: ['mp4'],
+        recommendedImageDimensions: {
+          minWidth: 200,
+          minHeight: 200,
+          maxWidth: 1280,
+          maxHeight: 1280,
+          aspectRatio: '1:1',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 30,
+        postsPerDay: 200,
+        minIntervalSeconds: 1,
+        supportsScheduling: false, // Telegram Bot API doesn't support native scheduling
+        supportsEditing: true,
+        editTimeLimitMinutes: 2880, // 48 hours
+      },
     };
   }
 }

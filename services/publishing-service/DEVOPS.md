@@ -625,13 +625,109 @@ redis-cli MONITOR
 
 ---
 
+## 📡 gRPC API
+
+### Доступные методы
+
+Publishing Service реализует следующие RPC методы согласно `publishing.proto`:
+
+#### 1. HealthCheck
+Проверка здоровья сервиса.
+
+```bash
+grpcurl -plaintext localhost:50053 publishing.PublishingService/HealthCheck
+```
+
+#### 2. PublishPost
+Публикация одного поста на платформу.
+
+```json
+{
+  "post_id": "post123",
+  "social_account_id": "@channel",
+  "platform": "TELEGRAM",
+  "content": "Hello, world!",
+  "image_urls": ["https://example.com/image.jpg"]
+}
+```
+
+#### 3. PublishBatch
+Пакетная публикация нескольких постов (streaming response).
+
+#### 4. SchedulePost
+Планирование поста на определённое время.
+
+```json
+{
+  "post_id": "post456",
+  "scheduled_at": {"seconds": 1735000000},
+  "publish_request": {...}
+}
+```
+
+#### 5. CancelScheduledPost
+Отмена запланированного поста.
+
+#### 6. UpdatePublishedPost
+Обновление опубликованного поста (если платформа поддерживает).
+
+#### 7. DeletePublishedPost
+Удаление опубликованного поста.
+
+#### 8. TestConnection
+Проверка подключения к платформе и валидности токена.
+
+```bash
+grpcurl -plaintext -d '{
+  "platform": "TELEGRAM",
+  "access_token": "your_token"
+}' localhost:50053 publishing.PublishingService/TestConnection
+```
+
+#### 9. GetPlatformLimits
+Получение лимитов платформы (макс. текст, фото, видео и т.д.).
+
+```bash
+grpcurl -plaintext -d '{
+  "platform": "TELEGRAM"
+}' localhost:50053 publishing.PublishingService/GetPlatformLimits
+```
+
+### Лимиты платформ
+
+| Платформа | Макс. текст | Макс. фото | Макс. видео | Редактирование | Планирование |
+|-----------|-------------|------------|-------------|----------------|--------------|
+| Telegram  | 4,096       | 10         | 1           | ✅ (48 ч)      | ❌           |
+| VK        | 16,384      | 10         | 10          | ✅ (24 ч)      | ✅           |
+| Facebook  | 63,206      | 10         | 1           | ✅ (1 ч)       | ✅           |
+| Instagram | 2,200       | 10         | 1           | ❌             | ❌           |
+| LinkedIn  | 3,000       | 9          | 1           | ❌             | ❌           |
+| Twitter   | 280         | 4          | 1           | ❌             | ❌           |
+
+### Error Codes
+
+| Код | Описание |
+|-----|----------|
+| `PUBLISHING_ERROR_CODE_INVALID_TOKEN` | Недействительный токен |
+| `PUBLISHING_ERROR_CODE_TOKEN_EXPIRED` | Токен истёк |
+| `PUBLISHING_ERROR_CODE_RATE_LIMIT` | Превышен лимит запросов |
+| `PUBLISHING_ERROR_CODE_CONTENT_TOO_LONG` | Слишком длинный текст |
+| `PUBLISHING_ERROR_CODE_INVALID_MEDIA` | Недействительный медиа файл |
+| `PUBLISHING_ERROR_CODE_NETWORK_ERROR` | Сетевая ошибка |
+| `PUBLISHING_ERROR_CODE_PLATFORM_ERROR` | Ошибка платформы |
+| `PUBLISHING_ERROR_CODE_PERMISSION_DENIED` | Отказано в доступе |
+| `PUBLISHING_ERROR_CODE_POST_NOT_FOUND` | Пост не найден |
+| `PUBLISHING_ERROR_CODE_ACCOUNT_SUSPENDED` | Аккаунт заблокирован |
+| `PUBLISHING_ERROR_CODE_SPAM_DETECTED` | Обнаружен спам |
+
+---
+
 ## 📞 Поддержка
 
 ### Документация
 
 - **Proto файлы:** `../../publishing.proto`
-- **API документация:** `docs/integrations/social-platforms.md`
-- **Архитектура:** `docs/architecture/overview.md`
+- **README:** `README.md`
 
 ### Useful Commands
 

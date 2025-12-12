@@ -1,6 +1,12 @@
 import { TwitterApi } from 'twitter-api-v2';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
 
@@ -52,19 +58,10 @@ export class TwitterPlatformBot extends BasePlatformBot {
         );
       }
 
-      const typedMediaIds =
-        mediaIds.length === 0
-          ? undefined
-          : (mediaIds.slice(0, 4) as
-              | [string]
-              | [string, string]
-              | [string, string, string]
-              | [string, string, string, string]);
-
       const result = await withRetry(async () => {
         return await client.v2.tweet({
           text: job.content,
-          media: typedMediaIds ? { media_ids: typedMediaIds } : undefined,
+          media: mediaIds.length > 0 ? { media_ids: mediaIds } : undefined,
         });
       });
 
@@ -84,10 +81,10 @@ export class TwitterPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    _externalId: string,
-    _content: string,
-    _imageUrls?: string[],
-    _accessToken?: string
+    externalId: string,
+    content: string,
+    imageUrls?: string[],
+    accessToken?: string
   ): Promise<PublishResult> {
     // Twitter doesn't support editing tweets (except for Twitter Blue subscribers with limited time)
     return {
@@ -118,11 +115,7 @@ export class TwitterPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const accessSecret = accessToken.split(':')[1];
 
@@ -132,34 +125,64 @@ export class TwitterPlatformBot extends BasePlatformBot {
 
       const client = this.getClient(accessToken.split(':')[0], accessSecret);
       const user = await client.v2.me({
-        'user.fields': ['profile_image_url', 'verified'],
+        'user.fields': ['profile_image_url', 'verified', 'public_metrics'],
       });
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: user.data.id,
+          externalId: user.data.id,
           username: user.data.username,
-          name: user.data.name,
-          profileImageUrl: user.data.profile_image_url,
-          isVerified: user.data.verified,
+          displayName: user.data.name,
+          avatarUrl: user.data.profile_image_url,
+          followersCount: (user.data as any).public_metrics?.followers_count,
+          isVerified: user.data.verified || false,
         },
+        permissions: ['tweet.read', 'tweet.write', 'users.read'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.message?.includes('token') || error.code === 401,
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 280,
-      maxImages: 4,
-      maxVideos: 1,
-      supportsEditing: false, // Only for Twitter Blue with limitations
-      supportsScheduling: false,
+      contentLimits: {
+        maxTextLength: 280,
+        maxHashtags: 10,
+        maxMentions: 10,
+        maxLinks: 4,
+        supportsMarkdown: false,
+        supportsHtml: false,
+      },
+      mediaLimits: {
+        maxImages: 4,
+        maxVideos: 1,
+        maxImageSizeBytes: 5 * 1024 * 1024, // 5 MB
+        maxVideoSizeBytes: 512 * 1024 * 1024, // 512 MB
+        supportedImageFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        supportedVideoFormats: ['mp4', 'mov'],
+        recommendedImageDimensions: {
+          minWidth: 600,
+          minHeight: 335,
+          maxWidth: 1200,
+          maxHeight: 675,
+          aspectRatio: '16:9',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 50,
+        postsPerDay: 300,
+        minIntervalSeconds: 5,
+        supportsScheduling: false,
+        supportsEditing: false, // Only for Twitter Blue with limitations
+        editTimeLimitMinutes: 0,
+      },
     };
   }
 }

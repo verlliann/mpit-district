@@ -7,7 +7,7 @@ import { Platform, PublishingJob } from '../queue/types';
 export class PublishingServiceImpl {
   // Health check
   async HealthCheck(
-    _call: ServerUnaryCall<any, any>,
+    call: ServerUnaryCall<any, any>,
     callback: sendUnaryData<any>
   ): Promise<void> {
     callback(null, {
@@ -38,7 +38,7 @@ export class PublishingServiceImpl {
       };
 
       // Add to queue
-      await getPublishingQueue().add(
+      const queueJob = await getPublishingQueue().add(
         `publish-${request.post_id}`,
         job,
         {
@@ -46,14 +46,30 @@ export class PublishingServiceImpl {
         }
       );
 
+      // Wait for job completion (with timeout)
+      const result = await queueJob.waitUntilFinished(
+        getPublishingQueue().events,
+        30000 // 30 seconds timeout
+      );
+
       callback(null, {
-        success: true,
-        error: '',
-        error_code: '',
-        post_info: undefined, // публикация выполняется асинхронно
+        success: result.success,
+        error: result.error || '',
+        error_code: result.errorCode || '',
+        post_info: result.success
+          ? {
+              post_id: request.post_id,
+              external_id: result.externalId,
+              external_url: result.externalUrl,
+              published_at: {
+                seconds: Math.floor(result.publishedAt!.getTime() / 1000),
+              },
+              platform: request.platform,
+            }
+          : undefined,
         metadata: {
-          attempt_number: 0,
-          processing_time_ms: 0,
+          attempt_number: queueJob.attemptsMade,
+          processing_time_ms: Date.now() - queueJob.timestamp,
           used_fallback: false,
           api_version: 'v1',
         },
@@ -89,16 +105,31 @@ export class PublishingServiceImpl {
             accessToken: postRequest.social_account_id,
           };
 
-          await getPublishingQueue().add(
+          const queueJob = await getPublishingQueue().add(
             `publish-${postRequest.post_id}`,
             job
           );
 
+          const result = await queueJob.waitUntilFinished(
+            getPublishingQueue().events,
+            30000
+          );
+
           call.write({
-            success: true,
-            error: '',
-            error_code: '',
-            post_info: undefined,
+            success: result.success,
+            error: result.error || '',
+            error_code: result.errorCode || '',
+            post_info: result.success
+              ? {
+                  post_id: postRequest.post_id,
+                  external_id: result.externalId,
+                  external_url: result.externalUrl,
+                  published_at: {
+                    seconds: Math.floor(result.publishedAt!.getTime() / 1000),
+                  },
+                  platform: postRequest.platform,
+                }
+              : undefined,
           });
         } catch (error: any) {
           logger.error({ error, postId: postRequest.post_id }, 'Batch publish failed for post');
@@ -236,7 +267,7 @@ export class PublishingServiceImpl {
       callback(null, {
         success: result.success,
         error: result.error || '',
-        platform_supports_edit: limits.supportsEditing,
+        platform_supports_edit: limits.postingLimits.supportsEditing,
         updated_at: result.success
           ? {
               seconds: Math.floor(Date.now() / 1000),
@@ -299,19 +330,36 @@ export class PublishingServiceImpl {
       logger.info({ platform: request.platform }, 'Testing connection');
 
       const bot = botFactory.getBot(request.platform as Platform);
-      const result = await bot.testConnection(request.access_token);
+      const connectionInfo = await bot.testConnection(request.access_token);
 
       callback(null, {
-        success: result.isValid,
-        error: result.error || '',
-        connection_info: result.isValid
-          ? {
-              is_valid: true,
-              token_expired: false,
-              account_info: result.accountInfo,
-              permissions: [],
-            }
-          : undefined,
+        success: connectionInfo.isValid,
+        error: '',
+        connection_info: {
+          is_valid: connectionInfo.isValid,
+          token_expired: connectionInfo.tokenExpired,
+          token_expires_at: connectionInfo.tokenExpiresAt 
+            ? { seconds: Math.floor(connectionInfo.tokenExpiresAt.getTime() / 1000) }
+            : undefined,
+          account_info: connectionInfo.accountInfo
+            ? {
+                external_id: connectionInfo.accountInfo.externalId,
+                username: connectionInfo.accountInfo.username,
+                display_name: connectionInfo.accountInfo.displayName,
+                avatar_url: connectionInfo.accountInfo.avatarUrl || '',
+                followers_count: connectionInfo.accountInfo.followersCount || 0,
+                is_verified: connectionInfo.accountInfo.isVerified,
+              }
+            : undefined,
+          permissions: connectionInfo.permissions,
+          rate_limit: connectionInfo.rateLimit
+            ? {
+                limit: connectionInfo.rateLimit.limit,
+                remaining: connectionInfo.rateLimit.remaining,
+                reset_at: { seconds: Math.floor(connectionInfo.rateLimit.resetAt.getTime() / 1000) },
+              }
+            : undefined,
+        },
       });
     } catch (error: any) {
       logger.error({ error }, 'TestConnection failed');
@@ -336,34 +384,43 @@ export class PublishingServiceImpl {
       callback(null, {
         platform: request.platform,
         content_limits: {
-          max_text_length: limits.maxTextLength,
-          max_hashtags: 30,
-          max_mentions: 10,
-          max_links: 5,
-          supports_markdown: false,
-          supports_html: false,
+          max_text_length: limits.contentLimits.maxTextLength,
+          max_hashtags: limits.contentLimits.maxHashtags,
+          max_mentions: limits.contentLimits.maxMentions,
+          max_links: limits.contentLimits.maxLinks,
+          supports_markdown: limits.contentLimits.supportsMarkdown,
+          supports_html: limits.contentLimits.supportsHtml,
         },
         media_limits: {
-          max_images: limits.maxImages,
-          max_videos: limits.maxVideos,
-          max_image_size_bytes: 10 * 1024 * 1024, // 10MB
-          max_video_size_bytes: 100 * 1024 * 1024, // 100MB
-          supported_image_formats: ['jpg', 'jpeg', 'png', 'gif'],
-          supported_video_formats: ['mp4', 'mov'],
+          max_images: limits.mediaLimits.maxImages,
+          max_videos: limits.mediaLimits.maxVideos,
+          max_image_size_bytes: limits.mediaLimits.maxImageSizeBytes,
+          max_video_size_bytes: limits.mediaLimits.maxVideoSizeBytes,
+          supported_image_formats: limits.mediaLimits.supportedImageFormats,
+          supported_video_formats: limits.mediaLimits.supportedVideoFormats,
+          recommended_image_dimensions: limits.mediaLimits.recommendedImageDimensions
+            ? {
+                min_width: limits.mediaLimits.recommendedImageDimensions.minWidth,
+                min_height: limits.mediaLimits.recommendedImageDimensions.minHeight,
+                max_width: limits.mediaLimits.recommendedImageDimensions.maxWidth,
+                max_height: limits.mediaLimits.recommendedImageDimensions.maxHeight,
+                aspect_ratio: limits.mediaLimits.recommendedImageDimensions.aspectRatio,
+              }
+            : undefined,
         },
         posting_limits: {
-          posts_per_hour: 20,
-          posts_per_day: 100,
-          min_interval_seconds: 30,
-          supports_scheduling: limits.supportsScheduling,
-          supports_editing: limits.supportsEditing,
-          edit_time_limit_minutes: 60,
+          posts_per_hour: limits.postingLimits.postsPerHour,
+          posts_per_day: limits.postingLimits.postsPerDay,
+          min_interval_seconds: limits.postingLimits.minIntervalSeconds,
+          supports_scheduling: limits.postingLimits.supportsScheduling,
+          supports_editing: limits.postingLimits.supportsEditing,
+          edit_time_limit_minutes: limits.postingLimits.editTimeLimitMinutes,
         },
       });
     } catch (error: any) {
       logger.error({ error }, 'GetPlatformLimits failed');
       callback(null, {
-        platform: call.request?.platform ?? '',
+        platform: request.platform,
         content_limits: {},
         media_limits: {},
         posting_limits: {},

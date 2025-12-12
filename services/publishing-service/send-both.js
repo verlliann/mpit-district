@@ -6,7 +6,6 @@
 
 const { VK } = require('vk-io');
 const TelegramBot = require('node-telegram-bot-api');
-const { addPost } = require('./rss/zen-feed');
 require('dotenv').config();
 
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -53,13 +52,6 @@ async function sendVK() {
   try {
     tgResult = await sendTelegram();
     console.log('✅ Telegram OK:', tgResult.url);
-    // Добавляем в RSS для Дзена
-    addPost({
-      title: message.substring(0, 80),
-      description: message,
-      link: tgResult.url,
-      pubDate: Date.now(),
-    });
   } catch (err) {
     console.error('⚠️ Telegram не отправлен:', err.message);
   }

@@ -6,7 +6,7 @@ import { logger } from '../../utils/logger';
 export async function processPublishingJob(
   job: Job<PublishingJob>
 ): Promise<PublishResult> {
-  const { postId, platform } = job.data;
+  const { postId, platform, content } = job.data;
 
   logger.info(
     { jobId: job.id, postId, platform },

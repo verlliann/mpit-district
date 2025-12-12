@@ -1,8 +1,15 @@
 import { IgApiClient } from 'instagram-private-api';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
+import axios from 'axios';
 
 export class InstagramPlatformBot extends BasePlatformBot {
   readonly platform = Platform.INSTAGRAM;
@@ -71,10 +78,10 @@ export class InstagramPlatformBot extends BasePlatformBot {
   }
 
   async update(
-    _externalId: string,
-    _content: string,
-    _imageUrls?: string[],
-    _accessToken?: string
+    externalId: string,
+    content: string,
+    imageUrls?: string[],
+    accessToken?: string
   ): Promise<PublishResult> {
     // Instagram doesn't support editing posts
     return {
@@ -108,11 +115,7 @@ export class InstagramPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const [username, password] = accessToken.split(':');
 
@@ -125,30 +128,59 @@ export class InstagramPlatformBot extends BasePlatformBot {
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: account.pk,
+          externalId: account.pk.toString(),
           username: account.username,
-          fullName: account.full_name,
-          profilePicUrl: account.profile_pic_url,
+          displayName: account.full_name,
+          avatarUrl: account.profile_pic_url,
+          followersCount: account.follower_count,
           isVerified: account.is_verified,
-          followerCount: (account as any).follower_count || 0,
         },
+        permissions: ['read_profile', 'publish_content'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.message?.includes('login') || error.message?.includes('auth'),
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 2200,
-      maxImages: 10, // for carousel posts
-      maxVideos: 1,
-      supportsEditing: false,
-      supportsScheduling: false,
+      contentLimits: {
+        maxTextLength: 2200,
+        maxHashtags: 30,
+        maxMentions: 20,
+        maxLinks: 1,
+        supportsMarkdown: false,
+        supportsHtml: false,
+      },
+      mediaLimits: {
+        maxImages: 10, // for carousel posts
+        maxVideos: 1,
+        maxImageSizeBytes: 8 * 1024 * 1024, // 8 MB
+        maxVideoSizeBytes: 100 * 1024 * 1024, // 100 MB
+        supportedImageFormats: ['jpg', 'jpeg', 'png'],
+        supportedVideoFormats: ['mp4', 'mov'],
+        recommendedImageDimensions: {
+          minWidth: 320,
+          minHeight: 320,
+          maxWidth: 1080,
+          maxHeight: 1350,
+          aspectRatio: '4:5',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 5,
+        postsPerDay: 25,
+        minIntervalSeconds: 60,
+        supportsScheduling: false,
+        supportsEditing: false,
+        editTimeLimitMinutes: 0,
+      },
     };
   }
 }

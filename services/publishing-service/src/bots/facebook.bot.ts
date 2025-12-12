@@ -1,6 +1,13 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import { BasePlatformBot } from './base.bot';
-import { Platform, PublishingJob, PublishResult } from '../queue/types';
+import { 
+  Platform, 
+  PublishingJob, 
+  PublishResult,
+  ConnectionInfo,
+  PlatformLimits
+} from '../queue/types';
 import { logger } from '../utils/logger';
 import { withRetry } from '../utils/retry';
 
@@ -104,7 +111,7 @@ export class FacebookPlatformBot extends BasePlatformBot {
   async update(
     externalId: string,
     content: string,
-    _imageUrls?: string[],
+    imageUrls?: string[],
     accessToken?: string
   ): Promise<PublishResult> {
     try {
@@ -153,11 +160,7 @@ export class FacebookPlatformBot extends BasePlatformBot {
     }
   }
 
-  async testConnection(accessToken: string): Promise<{
-    isValid: boolean;
-    error?: string;
-    accountInfo?: any;
-  }> {
+  async testConnection(accessToken: string): Promise<ConnectionInfo> {
     try {
       const response = await axios.get(`${this.baseUrl}/me`, {
         params: {
@@ -168,27 +171,58 @@ export class FacebookPlatformBot extends BasePlatformBot {
 
       return {
         isValid: true,
+        tokenExpired: false,
         accountInfo: {
-          id: response.data.id,
-          name: response.data.name,
-          picture: response.data.picture?.data?.url,
+          externalId: response.data.id,
+          username: response.data.id,
+          displayName: response.data.name,
+          avatarUrl: response.data.picture?.data?.url,
+          isVerified: false,
         },
+        permissions: ['pages_read_engagement', 'pages_manage_posts'],
       };
     } catch (error: any) {
       return {
         isValid: false,
-        error: error.message,
+        tokenExpired: error.message?.includes('token') || error.response?.status === 401,
+        permissions: [],
       };
     }
   }
 
-  getPlatformLimits() {
+  getPlatformLimits(): PlatformLimits {
     return {
-      maxTextLength: 63206,
-      maxImages: 10,
-      maxVideos: 1,
-      supportsEditing: true,
-      supportsScheduling: true,
+      contentLimits: {
+        maxTextLength: 63206,
+        maxHashtags: 30,
+        maxMentions: 50,
+        maxLinks: 10,
+        supportsMarkdown: false,
+        supportsHtml: false,
+      },
+      mediaLimits: {
+        maxImages: 10,
+        maxVideos: 1,
+        maxImageSizeBytes: 10 * 1024 * 1024, // 10 MB
+        maxVideoSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB
+        supportedImageFormats: ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
+        supportedVideoFormats: ['mp4', 'mov'],
+        recommendedImageDimensions: {
+          minWidth: 600,
+          minHeight: 315,
+          maxWidth: 1200,
+          maxHeight: 630,
+          aspectRatio: '1.91:1',
+        },
+      },
+      postingLimits: {
+        postsPerHour: 25,
+        postsPerDay: 200,
+        minIntervalSeconds: 30,
+        supportsScheduling: true,
+        supportsEditing: true,
+        editTimeLimitMinutes: 60,
+      },
     };
   }
 }
