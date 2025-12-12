@@ -154,10 +154,42 @@ export const resolvers = {
     },
 
     scheduledPosts: async (_: any, { from, to }: any, context: Context) => {
-      const fromDate = from ? new Date(from) : new Date();
-      const toDate = to ? new Date(to) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      const response = await context.storageClient.listScheduledPosts(fromDate, toDate);
-      return response.posts || [];
+      try {
+        const fromDate = from ? new Date(from) : new Date();
+        const toDate = to ? new Date(to) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        const result = await pool.query(`
+          SELECT 
+            p.id, p.platform, p.content, p.status, p.scheduled_at,
+            (SELECT json_agg(json_build_object('id', i.id, 'thumbnailUrl', i.thumbnail_url))
+             FROM images i 
+             JOIN post_images pi ON i.id = pi.image_id 
+             WHERE pi.post_id = p.id) as images,
+            a.id as article_id, a.title as article_title
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          WHERE p.status = 'SCHEDULED'
+            AND p.scheduled_at >= $1
+            AND p.scheduled_at <= $2
+          ORDER BY p.scheduled_at ASC
+        `, [fromDate, toDate]);
+
+        return result.rows.map((row: any) => ({
+          id: row.id,
+          platform: row.platform,
+          content: row.content,
+          status: row.status,
+          scheduledAt: row.scheduled_at,
+          images: row.images || [],
+          article: row.article_id ? {
+            id: row.article_id,
+            title: row.article_title
+          } : null
+        }));
+      } catch (error: any) {
+        console.error('Error fetching scheduled posts:', error);
+        return [];
+      }
     },
 
     // Analytics (mock for now)
@@ -249,6 +281,32 @@ export const resolvers = {
     },
 
     // Posts
+    createPost: async (_: any, { input }: any, context: Context) => {
+      try {
+        const { platform, content, style, status, scheduledAt } = input;
+        
+        const result = await pool.query(`
+          INSERT INTO posts (platform, content, style, status, scheduled_at)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id, platform, content, style, status, scheduled_at, created_at
+        `, [platform, content, style || 'NEUTRAL', status || 'DRAFT', scheduledAt]);
+
+        const row = result.rows[0];
+        return {
+          id: row.id,
+          platform: row.platform,
+          content: row.content,
+          style: row.style,
+          status: row.status,
+          scheduledAt: row.scheduled_at,
+          createdAt: row.created_at
+        };
+      } catch (error: any) {
+        console.error('Error creating post:', error);
+        throw new Error('Не удалось создать пост: ' + error.message);
+      }
+    },
+
     generatePosts: async (_: any, { input }: any, context: Context) => {
       try {
         // TODO: Call AI engine service

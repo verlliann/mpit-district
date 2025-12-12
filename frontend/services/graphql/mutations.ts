@@ -52,6 +52,20 @@ export const DELETE_ARTICLE = gql`
 
 // ==================== POSTS ====================
 
+export const CREATE_POST = gql`
+  mutation CreatePost($input: CreatePostInput!) {
+    createPost(input: $input) {
+      id
+      platform
+      content
+      style
+      status
+      scheduledAt
+      createdAt
+    }
+  }
+`;
+
 export const GENERATE_POSTS = gql`
   mutation GeneratePosts($input: GeneratePostsInput!) {
     generatePosts(input: $input) {

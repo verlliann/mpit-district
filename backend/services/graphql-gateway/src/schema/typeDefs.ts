@@ -270,6 +270,14 @@ export const typeDefs = `#graphql
     customInstructions: String
   }
 
+  input CreatePostInput {
+    platform: Platform!
+    content: String!
+    style: PostStyle
+    status: PostStatus
+    scheduledAt: DateTime
+  }
+
   input UpdatePostInput {
     content: String
     scheduledAt: DateTime
@@ -316,6 +324,7 @@ export const typeDefs = `#graphql
     deleteArticle(id: ID!): Boolean!
     
     # Posts
+    createPost(input: CreatePostInput!): Post!
     generatePosts(input: GeneratePostsInput!): [Post!]!
     updatePost(id: ID!, input: UpdatePostInput!): Post!
     publishPost(id: ID!): PublishResult!
