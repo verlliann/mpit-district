@@ -1,17 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
-  <channel>
-    <title>Sirius News</title>
-    <link>https://example.com/zen</link>
-    <description>RSS фид для импорта в Яндекс Дзен</description>
+<channel>
+  <title>Telegram → Яндекс Дзен</title>
+  <link>https://t.me/your_channel</link>
+  <description>Автогенерация RSS для Яндекс Дзен из Telegram.</description>
+  <language>ru-RU</language>
 
-    <item>
-      <title>🚀 Тестовый пост 12.12.2025, 16:19:59 (Telegram + VK)</title>
-      <link>https://t.me/SiriusNewsMPIT/10</link>
-      <description>🚀 Тестовый пост 12.12.2025, 16:19:59 (Telegram + VK)</description>
-      <guid isPermaLink="false">https://t.me/SiriusNewsMPIT/10</guid>
-      <pubDate>Fri, 12 Dec 2025 13:20:00 GMT</pubDate>
-      
-    </item>
-  </channel>
+</channel>
 </rss>

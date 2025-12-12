@@ -7,6 +7,7 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "rss:build": "node zen/build-feed.js",
     "proto:generate": "grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./src/proto --grpc_out=grpc_js:./src/proto --plugin=protoc-gen-grpc=`which grpc_tools_node_protoc_plugin` ../../*.proto",
     "test": "jest",
     "lint": "eslint src --ext .ts"
