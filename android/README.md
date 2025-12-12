@@ -18,37 +18,52 @@ Android приложение с WebView для доступа к AI-Newsmaker п
 
 ## Сборка APK
 
-### Через Android Studio:
+### ⚠️ Требования
 
-1. Откройте проект в Android Studio
-2. Build → Generate Signed Bundle / APK
-3. Выберите APK
-4. Создайте или выберите keystore
-5. Build → Build APK(s)
+Для сборки нужен **Android SDK**. Выберите один из вариантов:
 
-APK будет в: `app/build/outputs/apk/release/app-release.apk`
-
-### Через командную строку:
-
-```bash
-# Debug APK (без подписи)
-./gradlew assembleDebug
-
-# Release APK (требует keystore)
-./gradlew assembleRelease
-```
-
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-
-## Быстрая сборка Debug APK
+### Вариант 1: Через Docker (РЕКОМЕНДУЕТСЯ - без установки SDK)
 
 ```bash
 cd android
-chmod +x gradlew
+./build-docker.sh
+```
+
+APK будет в: `output/app-debug.apk`
+
+### Вариант 2: С Android Studio
+
+1. Установите Android Studio: `yay -S android-studio`
+2. Запустите Android Studio и установите Android SDK
+3. Откройте проект в Android Studio
+4. Build → Build APK(s)
+
+APK будет в: `app/build/outputs/apk/debug/app-debug.apk`
+
+### Вариант 3: С Android SDK (командная строка)
+
+```bash
+# Установите Android SDK
+yay -S android-sdk android-sdk-platform-tools android-sdk-build-tools
+
+# Или скачайте вручную:
+wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+unzip commandlinetools-linux-9477386_latest.zip -d ~/Android
+mkdir -p ~/Android/Sdk/cmdline-tools/latest
+mv ~/Android/cmdline-tools/* ~/Android/Sdk/cmdline-tools/latest/
+
+# Установите платформы
+~/Android/Sdk/cmdline-tools/latest/bin/sdkmanager \
+  "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+# Создайте local.properties
+echo "sdk.dir=$HOME/Android/Sdk" > local.properties
+
+# Соберите APK
 ./gradlew assembleDebug
 ```
 
-APK будет готов для установки на устройство.
+APK будет в: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Установка
 
