@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install python3 and build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
 # Copy package files
 COPY services/publishing-service/package*.json ./
 
@@ -19,6 +22,9 @@ RUN npm run build
 FROM node:20-alpine
 
 WORKDIR /app
+
+# Install python3 and build dependencies for native modules
+RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY services/publishing-service/package*.json ./

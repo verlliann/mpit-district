@@ -6,6 +6,7 @@ protobuf==4.25.3
 # Image processing
 Pillow==10.2.0
 opencv-python-headless==4.9.0.80
+numpy<2.0.0
 
 # MinIO client
 minio==7.2.3
