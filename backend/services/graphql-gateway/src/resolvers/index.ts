@@ -270,6 +270,7 @@ export const resolvers = {
           return {
             article: null,
             error: result.error,
+            progress: 0,
           };
         }
         
@@ -308,6 +309,31 @@ export const resolvers = {
           
           const savedArticle = insertResult.rows[0];
           
+          // Добавляем id к entities, если их нет
+          const entitiesWithIds = (articleData.entities || []).map((e: any, idx: number) => ({
+            id: e.id || `entity-${savedArticle.id}-${idx}`,
+            name: e.name,
+            type: e.type || 'OTHER',
+            mentions: e.mentions || 1,
+            confidence: e.confidence || 0.8
+          }));
+          
+          // Добавляем id к facts, если их нет
+          const factsWithIds = (articleData.facts || []).map((f: any, idx: number) => ({
+            id: f.id || `fact-${savedArticle.id}-${idx}`,
+            text: f.text || f.content,
+            importance: f.importance || 5,
+            orderIndex: idx
+          }));
+          
+          // Добавляем id к quotes, если их нет
+          const quotesWithIds = (articleData.quotes || []).map((q: any, idx: number) => ({
+            id: q.id || `quote-${savedArticle.id}-${idx}`,
+            text: q.text,
+            author: q.author,
+            orderIndex: idx
+          }));
+          
           return {
             article: {
               id: savedArticle.id,
@@ -320,24 +346,27 @@ export const resolvers = {
               publishedAt: savedArticle.published_at,
               sentiment: savedArticle.sentiment,
               sentimentScore: savedArticle.sentiment_score,
-              facts: articleData.facts || [],
-              entities: articleData.entities || [],
-              quotes: articleData.quotes || [],
+              facts: factsWithIds,
+              entities: entitiesWithIds,
+              quotes: quotesWithIds,
               images: []
             },
             error: null,
+            progress: 100,
           };
         }
         
         return {
           article: null,
           error: 'No article data returned from parser',
+          progress: 0,
         };
       } catch (error: any) {
         console.error('Parse article error:', error);
         return {
           article: null,
           error: error.message || 'Failed to parse article',
+          progress: 0,
         };
       }
     },

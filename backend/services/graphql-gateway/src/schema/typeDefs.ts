@@ -89,6 +89,7 @@ export const typeDefs = `#graphql
   }
 
   type Entity {
+    id: ID!
     name: String!
     type: EntityType!
     mentions: Int
@@ -380,6 +381,7 @@ export const typeDefs = `#graphql
   type ParseArticleResult {
     article: Article
     error: String
+    progress: Int
   }
 
   type PublishResult {

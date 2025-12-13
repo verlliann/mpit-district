@@ -181,64 +181,64 @@ export const CalendarView: React.FC = () => {
   };
 
   const renderMonthView = () => (
-    <div className="flex-1 grid grid-cols-7 auto-rows-fr bg-slate-200/50 gap-[1px] min-w-[600px] md:min-w-0">
+            <div className="flex-1 grid grid-cols-7 auto-rows-fr bg-slate-200/50 gap-[1px] min-w-[600px] md:min-w-0">
       {days.map(({ day, actualDay, isCurrentMonth }, i) => {
-        // Находим посты для этого дня
-        const dayPosts = scheduledPosts.filter((post: any) => {
+                // Находим посты для этого дня
+                const dayPosts = scheduledPosts.filter((post: any) => {
           if (!post.scheduledAt || !isCurrentMonth) return false;
-          const postDate = new Date(post.scheduledAt);
-          return postDate.getDate() === day && 
-                 postDate.getMonth() === currentDate.getMonth() &&
-                 postDate.getFullYear() === currentDate.getFullYear();
-        });
-        
-        return (
-          <div 
-            key={i} 
-            onClick={() => handleDayClick(day, isCurrentMonth)}
-            className={`bg-white/60 backdrop-blur-sm p-2 min-h-[80px] relative hover:bg-white/80 transition-all duration-200 group ${!isCurrentMonth ? 'text-slate-300 bg-slate-50/50 pointer-events-none' : 'cursor-pointer hover:shadow-inner'}`}
-          >
-            <div className="flex justify-between items-start">
-              <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${!isCurrentMonth ? '' : 'text-slate-700 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors'}`}>
-                {day}
-              </span>
-              {isCurrentMonth && (
-                <PlusCircle size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 transition-opacity" />
-              )}
-            </div>
-            
-            <div className="mt-2 space-y-1">
-              {dayPosts.slice(0, 3).map((post: any) => (
+                  const postDate = new Date(post.scheduledAt);
+                  return postDate.getDate() === day && 
+                         postDate.getMonth() === currentDate.getMonth() &&
+                         postDate.getFullYear() === currentDate.getFullYear();
+                });
+                
+                return (
                 <div 
-                  key={post.id}
-                  className={`text-[10px] p-1.5 rounded-md border truncate cursor-pointer hover:scale-[1.02] transition-transform font-medium shadow-sm ${
-                    post.status === 'SCHEDULED' 
-                      ? 'bg-blue-100/60 text-blue-700 border-blue-200/50' 
-                      : 'bg-slate-100/60 text-slate-600 border-slate-200/50 border-dashed'
-                  }`}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    addToast('Открыт пост', 'info', `Пост #${post.id.slice(0, 8)} - ${post.platform}`); 
-                  }}
+                  key={i} 
+            onClick={() => handleDayClick(day, isCurrentMonth)}
+                  className={`bg-white/60 backdrop-blur-sm p-2 min-h-[80px] relative hover:bg-white/80 transition-all duration-200 group ${!isCurrentMonth ? 'text-slate-300 bg-slate-50/50 pointer-events-none' : 'cursor-pointer hover:shadow-inner'}`}
                 >
-                  {post.platform === 'TELEGRAM' && '📱'} 
-                  {post.platform === 'VK' && '🔵'} 
-                  {post.platform === 'INSTAGRAM' && '📸'} 
-                  {post.platform === 'LINKEDIN' && '💼'} 
-                  {' '}
-                  {post.content?.substring(0, 15) || 'Без текста'}...
+                    <div className="flex justify-between items-start">
+                      <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${!isCurrentMonth ? '' : 'text-slate-700 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors'}`}>
+                        {day}
+                      </span>
+                      {isCurrentMonth && (
+                         <PlusCircle size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 transition-opacity" />
+                      )}
+                    </div>
+                    
+                    <div className="mt-2 space-y-1">
+                    {dayPosts.slice(0, 3).map((post: any) => (
+                        <div 
+                          key={post.id}
+                          className={`text-[10px] p-1.5 rounded-md border truncate cursor-pointer hover:scale-[1.02] transition-transform font-medium shadow-sm ${
+                            post.status === 'SCHEDULED' 
+                              ? 'bg-blue-100/60 text-blue-700 border-blue-200/50' 
+                              : 'bg-slate-100/60 text-slate-600 border-slate-200/50 border-dashed'
+                          }`}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            addToast('Открыт пост', 'info', `Пост #${post.id.slice(0, 8)} - ${post.platform}`); 
+                          }}
+                        >
+                          {post.platform === 'TELEGRAM' && '📱'} 
+                          {post.platform === 'VK' && '🔵'} 
+                          {post.platform === 'INSTAGRAM' && '📸'} 
+                          {post.platform === 'LINKEDIN' && '💼'} 
+                          {' '}
+                          {post.content?.substring(0, 15) || 'Без текста'}...
+                        </div>
+                    ))}
+                    {dayPosts.length > 3 && (
+                      <div className="text-[9px] text-slate-500 text-center font-semibold">
+                        +{dayPosts.length - 3} еще
+                      </div>
+                    )}
+                    </div>
                 </div>
-              ))}
-              {dayPosts.length > 3 && (
-                <div className="text-[9px] text-slate-500 text-center font-semibold">
-                  +{dayPosts.length - 3} еще
-                </div>
-              )}
+                );
+            })}
             </div>
-          </div>
-        );
-      })}
-    </div>
   );
 
   const renderWeekView = () => (
@@ -393,50 +393,50 @@ export const CalendarView: React.FC = () => {
         }
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Текст публикации</label>
-            <textarea
-              className="w-full bg-white/40 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 min-h-[100px]"
-              placeholder="Например: Анонс вебинара по AI..."
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              autoFocus
-            />
-          </div>
-          
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Время публикации</label>
-            <div className="flex gap-2">
-              <input 
-                type="time" 
-                className="bg-white/40 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" 
-                value={postTime}
-                onChange={(e) => setPostTime(e.target.value)}
-              />
-            </div>
-          </div>
+           <div>
+             <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Текст публикации</label>
+             <textarea
+               className="w-full bg-white/40 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 min-h-[100px]"
+               placeholder="Например: Анонс вебинара по AI..."
+               value={postContent}
+               onChange={(e) => setPostContent(e.target.value)}
+               autoFocus
+             />
+           </div>
+           
+           <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Время публикации</label>
+              <div className="flex gap-2">
+                 <input 
+                   type="time" 
+                   className="bg-white/40 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                   value={postTime}
+                   onChange={(e) => setPostTime(e.target.value)}
+                 />
+              </div>
+           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Платформы</label>
-            <div className="flex gap-2 flex-wrap">
-              {[Platform.TELEGRAM, Platform.VK, Platform.INSTAGRAM, Platform.LINKEDIN].map(p => (
-                <Badge 
-                  key={p} 
-                  variant={selectedPlatforms.includes(p) ? "primary" : "neutral"} 
-                  className="cursor-pointer hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-                  onClick={() => {
-                    if (selectedPlatforms.includes(p)) {
-                      setSelectedPlatforms(selectedPlatforms.filter(pl => pl !== p));
-                    } else {
-                      setSelectedPlatforms([...selectedPlatforms, p]);
-                    }
-                  }}
-                >
-                  {p}
-                </Badge>
-              ))}
-            </div>
-          </div>
+           <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide opacity-80">Платформы</label>
+              <div className="flex gap-2 flex-wrap">
+                 {[Platform.TELEGRAM, Platform.VK, Platform.INSTAGRAM, Platform.LINKEDIN].map(p => (
+                   <Badge 
+                     key={p} 
+                     variant={selectedPlatforms.includes(p) ? "primary" : "neutral"} 
+                     className="cursor-pointer hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+                     onClick={() => {
+                       if (selectedPlatforms.includes(p)) {
+                         setSelectedPlatforms(selectedPlatforms.filter(pl => pl !== p));
+                       } else {
+                         setSelectedPlatforms([...selectedPlatforms, p]);
+                       }
+                     }}
+                   >
+                     {p}
+                   </Badge>
+                 ))}
+              </div>
+           </div>
         </div>
       </Modal>
     </div>

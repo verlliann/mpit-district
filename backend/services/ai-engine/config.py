@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     YANDEX_FOLDER_ID: Optional[str] = None
     YANDEX_MODEL: str = "yandexgpt-lite"
     
-    # Default provider: openai | anthropic | yandex
+    # Google Gemini
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-1.5-flash"  # gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash-8b
+    
+    # Default provider: openai | anthropic | yandex | gemini
     DEFAULT_LLM_PROVIDER: str = "openai"
     
     # Processing

@@ -7,6 +7,7 @@ import structlog
 
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
+import google.generativeai as genai
 import httpx
 
 from config import settings
@@ -184,6 +185,63 @@ class YandexGPTProvider(LLMProvider):
         return LLMResponse(content, self.model, total_tokens, prompt_tokens, completion_tokens, cost)
 
 
+class GeminiProvider(LLMProvider):
+    """Google Gemini provider."""
+    
+    # Модели Gemini с ценами ($ per 1M tokens)
+    MODELS = {
+        "gemini-2.0-flash-exp": {"input": 0.0, "output": 0.0},  # Бесплатная экспериментальная
+        "gemini-1.5-flash": {"input": 0.075, "output": 0.30},  # Быстрая
+        "gemini-1.5-flash-8b": {"input": 0.0375, "output": 0.15},  # Самая лёгкая (nano)
+        "gemini-1.5-pro": {"input": 1.25, "output": 5.0},  # Мощная
+        "gemini-exp-1206": {"input": 0.0, "output": 0.0},  # Экспериментальная
+    }
+    
+    def __init__(self):
+        model = settings.GEMINI_MODEL or "gemini-1.5-flash"
+        super().__init__("gemini", model)
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        self.client = genai.GenerativeModel(model)
+    
+    async def complete(self, prompt: str, temperature: float = 0.7, max_tokens: int = 4096, **kwargs) -> LLMResponse:
+        self.logger.info("Calling Gemini", model=self.model)
+        
+        start_time = time.time()
+        
+        generation_config = genai.GenerationConfig(
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json"
+        )
+        
+        # Gemini API синхронный, но быстрый
+        import asyncio
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.generate_content(
+                f"Отвечай ТОЛЬКО валидным JSON.\n\n{prompt}",
+                generation_config=generation_config
+            )
+        )
+        
+        elapsed = time.time() - start_time
+        
+        content = response.text
+        
+        # Токены из usage_metadata
+        prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', len(prompt) // 4)
+        completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', len(content) // 4)
+        total_tokens = prompt_tokens + completion_tokens
+        
+        pricing = self.MODELS.get(self.model, {"input": 0.075, "output": 0.30})
+        cost = (prompt_tokens / 1_000_000) * pricing["input"] + (completion_tokens / 1_000_000) * pricing["output"]
+        
+        self.logger.info("Gemini done", tokens=total_tokens, cost=round(cost, 6), time_ms=int(elapsed * 1000))
+        
+        return LLMResponse(content, self.model, total_tokens, prompt_tokens, completion_tokens, cost)
+
+
 def get_llm_provider(provider_name: str = None) -> LLMProvider:
     """Get LLM provider by name."""
     name = provider_name or settings.DEFAULT_LLM_PROVIDER or "openai"
@@ -191,10 +249,11 @@ def get_llm_provider(provider_name: str = None) -> LLMProvider:
     providers = {
         "openai": OpenAIProvider,
         "anthropic": AnthropicProvider,
-        "yandex": YandexGPTProvider
+        "yandex": YandexGPTProvider,
+        "gemini": GeminiProvider
     }
     
     if name not in providers:
-        raise ValueError(f"Unknown provider: {name}")
+        raise ValueError(f"Unknown provider: {name}. Available: {list(providers.keys())}")
     
     return providers[name]()

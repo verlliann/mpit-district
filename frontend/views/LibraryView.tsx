@@ -63,13 +63,13 @@ export const LibraryView: React.FC = () => {
     },
     content: p.content
   })) || [];
-
+  
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [postToEdit, setPostToEdit] = useState<any>(null);
   const [editContent, setEditContent] = useState('');
-  
+
   // Create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
@@ -171,10 +171,10 @@ export const LibraryView: React.FC = () => {
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Библиотека</h1>
-          <p className="text-slate-500 text-sm">
+           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Библиотека</h1>
+           <p className="text-slate-500 text-sm">
             {data ? `${data.posts?.totalCount || 0} постов` : 'Все ваши черновики и публикации'}
-          </p>
+           </p>
         </div>
         
         <div className="flex gap-2">
@@ -186,37 +186,37 @@ export const LibraryView: React.FC = () => {
 
       {/* Filters Toolbar */}
       <Card className="p-3 flex flex-col md:flex-row gap-3 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-          <input 
-            placeholder="Поиск по заголовку..." 
-            className="w-full pl-9 pr-4 py-2 text-sm bg-white/40 border border-white/60 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-          <select 
-            className="px-3 py-2 bg-white/40 border border-white/60 rounded-lg text-sm text-slate-600 outline-none cursor-pointer hover:bg-white/60 min-w-[120px]"
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="All">Все платформы</option>
-            {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          
-          <select 
-            className="px-3 py-2 bg-white/40 border border-white/60 rounded-lg text-sm text-slate-600 outline-none cursor-pointer hover:bg-white/60 min-w-[120px]"
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="All">Любой статус</option>
-            {Object.values(PostStatus).map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          
-          <button className="p-2 bg-white/40 border border-white/60 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-white/80 transition-colors">
-            <Filter size={18} />
-          </button>
-        </div>
+         <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <input 
+              placeholder="Поиск по заголовку..." 
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white/40 border border-white/60 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+         </div>
+         
+         <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+            <select 
+              className="px-3 py-2 bg-white/40 border border-white/60 rounded-lg text-sm text-slate-600 outline-none cursor-pointer hover:bg-white/60 min-w-[120px]"
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="All">Все платформы</option>
+              {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            
+             <select 
+              className="px-3 py-2 bg-white/40 border border-white/60 rounded-lg text-sm text-slate-600 outline-none cursor-pointer hover:bg-white/60 min-w-[120px]"
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="All">Любой статус</option>
+              {Object.values(PostStatus).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            
+            <button className="p-2 bg-white/40 border border-white/60 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-white/80 transition-colors">
+               <Filter size={18} />
+            </button>
+         </div>
       </Card>
 
       {/* Empty State */}
@@ -247,73 +247,73 @@ export const LibraryView: React.FC = () => {
 
       {/* Grid */}
       {!isEmpty && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPosts.map((post: any) => (
-            <div key={post.id} className="group relative bg-white/40 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1">
-              {/* Image Area */}
+          <div key={post.id} className="group relative bg-white/40 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1">
+            {/* Image Area */}
               <div className="h-40 w-full relative overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                 {post.image ? (
-                  <img src={post.image} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+               <img src={post.image} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <FileText size={48} className="text-slate-300" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
+               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
                   <div className="flex gap-2">
-                    <button onClick={() => openEditModal(post)} className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white/40 transition-colors"><Edit size={14} /></button>
-                    <button 
+                     <button onClick={() => openEditModal(post)} className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white/40 transition-colors"><Edit size={14} /></button>
+                     <button 
                       onClick={() => setPostToDelete(post.id)}
                       className="p-1.5 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-red-500/60 transition-colors"
-                    >
+                     >
                       <Trash2 size={14} />
-                    </button>
+                     </button>
                   </div>
-                </div>
-                <div className="absolute top-3 left-3">
+               </div>
+               <div className="absolute top-3 left-3">
                   <Badge variant="neutral" className="bg-white/90 backdrop-blur-md border-0 shadow-sm">{post.platform}</Badge>
-                </div>
-                <div className="absolute top-3 right-3">
+               </div>
+               <div className="absolute top-3 right-3">
                   <Badge variant={getStatusVariant(post.status)} className="shadow-sm">{post.status}</Badge>
-                </div>
-              </div>
+               </div>
+            </div>
 
-              {/* Content Area */}
-              <div className="p-5">
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium mb-2">
+            {/* Content Area */}
+            <div className="p-5">
+               <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium mb-2">
                   <Calendar size={12} />
                   <span>{post.date}</span>
-                </div>
-                
-                <h3 className="text-base font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-indigo-700 transition-colors">{post.title}</h3>
-                <p className="text-xs text-slate-600 line-clamp-2 mb-4 leading-relaxed">{post.excerpt}</p>
-                
-                <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between">
+               </div>
+               
+               <h3 className="text-base font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-indigo-700 transition-colors">{post.title}</h3>
+               <p className="text-xs text-slate-600 line-clamp-2 mb-4 leading-relaxed">{post.excerpt}</p>
+               
+               <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500" title="Views">
-                      <Eye size={14} /> {post.stats.views > 0 ? post.stats.views : '-'}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500" title="Likes">
-                      <Heart size={14} /> {post.stats.likes > 0 ? post.stats.likes : '-'}
-                    </div>
+                     <div className="flex items-center gap-1.5 text-xs text-slate-500" title="Views">
+                        <Eye size={14} /> {post.stats.views > 0 ? post.stats.views : '-'}
+                     </div>
+                     <div className="flex items-center gap-1.5 text-xs text-slate-500" title="Likes">
+                        <Heart size={14} /> {post.stats.likes > 0 ? post.stats.likes : '-'}
+                     </div>
                   </div>
                   <button className="text-slate-400 hover:text-indigo-600 transition-colors">
-                    <MoreVertical size={16} />
+                     <MoreVertical size={16} />
                   </button>
-                </div>
-              </div>
+               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
       )}
       
       {filteredPosts.length === 0 && posts.length > 0 && (
-        <div className="text-center py-20 text-slate-400">
-          <div className="mb-3 mx-auto w-12 h-12 bg-slate-200/50 rounded-full flex items-center justify-center">
-            <Search size={24} className="opacity-50" />
-          </div>
-          <p>Ничего не найдено по вашему запросу</p>
-        </div>
+         <div className="text-center py-20 text-slate-400">
+            <div className="mb-3 mx-auto w-12 h-12 bg-slate-200/50 rounded-full flex items-center justify-center">
+               <Search size={24} className="opacity-50" />
+            </div>
+            <p>Ничего не найдено по вашему запросу</p>
+         </div>
       )}
 
       {/* Create Modal */}
@@ -418,13 +418,13 @@ export const LibraryView: React.FC = () => {
         }
       >
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-500 mt-1">
-            <AlertTriangle size={20} />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800 mb-1">Это действие нельзя отменить.</p>
+           <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-500 mt-1">
+             <AlertTriangle size={20} />
+           </div>
+           <div>
+             <p className="font-semibold text-slate-800 mb-1">Это действие нельзя отменить.</p>
             <p className="text-sm">Публикация будет удалена из библиотеки.</p>
-          </div>
+           </div>
         </div>
       </Modal>
     </div>
