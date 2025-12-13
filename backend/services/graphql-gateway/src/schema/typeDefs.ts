@@ -237,6 +237,8 @@ export const typeDefs = `#graphql
     posts: Int!
     reach: Int!
     engagement: Float!
+    avgViews: Float
+    avgLikes: Float
   }
 
   type TimelinePoint {
@@ -244,6 +246,8 @@ export const typeDefs = `#graphql
     posts: Int!
     reach: Int!
     engagement: Float!
+    views: Int
+    likes: Int
   }
 
   # Input types

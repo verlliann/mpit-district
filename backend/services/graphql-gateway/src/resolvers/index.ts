@@ -1,5 +1,6 @@
 import { GraphQLScalarType, Kind } from 'graphql';
 import { StorageClient } from '../clients/storage';
+import { ParserClient } from '../clients/parser';
 import { PubSub } from 'graphql-subscriptions';
 import { pool } from '../clients/postgres';
 
@@ -46,6 +47,7 @@ const JSONScalar = new GraphQLScalarType({
 
 interface Context {
   storageClient: StorageClient;
+  parserClient: ParserClient;
   userId?: string;
   user?: any;
 }
@@ -261,16 +263,81 @@ export const resolvers = {
     // Articles
     parseArticle: async (_: any, { url }: { url: string }, context: Context) => {
       try {
-        // TODO: Call parser service
-        // For now, return mock error
+        console.log(`Parsing article: ${url}`);
+        const result = await context.parserClient.parseArticle(url);
+        
+        if (result.error) {
+          return {
+            article: null,
+            error: result.error,
+          };
+        }
+        
+        // Сохраняем статью в базу
+        if (result.article) {
+          const articleData = result.article;
+          
+          // Маппинг sentiment из proto в PostgreSQL enum
+          const mapSentiment = (s: string): string => {
+            if (!s || s === 'SENTIMENT_UNSPECIFIED') return 'NEUTRAL';
+            if (s === 'SENTIMENT_POSITIVE' || s === 'POSITIVE') return 'POSITIVE';
+            if (s === 'SENTIMENT_NEGATIVE' || s === 'NEGATIVE') return 'NEGATIVE';
+            if (s === 'SENTIMENT_NEUTRAL' || s === 'NEUTRAL') return 'NEUTRAL';
+            return 'NEUTRAL';
+          };
+          
+          const insertResult = await pool.query(`
+            INSERT INTO articles (url, title, content, excerpt, source, author, published_at, sentiment, sentiment_score)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (url) DO UPDATE SET
+              title = EXCLUDED.title,
+              content = EXCLUDED.content,
+              updated_at = NOW()
+            RETURNING *
+          `, [
+            url,
+            articleData.title || 'Без названия',
+            articleData.content || '',
+            articleData.excerpt || articleData.content?.substring(0, 200) || '',
+            articleData.source || new URL(url).hostname,
+            articleData.author || null,
+            articleData.published_at || new Date(),
+            mapSentiment(articleData.sentiment),
+            articleData.sentiment_score || 0.5
+          ]);
+          
+          const savedArticle = insertResult.rows[0];
+          
+          return {
+            article: {
+              id: savedArticle.id,
+              url: savedArticle.url,
+              title: savedArticle.title,
+              content: savedArticle.content,
+              excerpt: savedArticle.excerpt,
+              source: savedArticle.source,
+              author: savedArticle.author,
+              publishedAt: savedArticle.published_at,
+              sentiment: savedArticle.sentiment,
+              sentimentScore: savedArticle.sentiment_score,
+              facts: articleData.facts || [],
+              entities: articleData.entities || [],
+              quotes: articleData.quotes || [],
+              images: []
+            },
+            error: null,
+          };
+        }
+        
         return {
           article: null,
-          error: 'Parser service not available yet',
+          error: 'No article data returned from parser',
         };
       } catch (error: any) {
+        console.error('Parse article error:', error);
         return {
           article: null,
-          error: error.message,
+          error: error.message || 'Failed to parse article',
         };
       }
     },

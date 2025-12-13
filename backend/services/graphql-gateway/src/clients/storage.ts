@@ -2,7 +2,15 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 
-const PROTO_PATH = path.join(__dirname, '../../../../proto/storage.proto');
+// In Docker: /app/proto/storage.proto (from dist/clients/ -> ../../proto)
+// Locally: from src/clients/ -> ../../../../proto
+const PROTO_PATH = process.env.NODE_ENV === 'production' 
+  ? path.join(__dirname, '../../proto/storage.proto')
+  : path.join(__dirname, '../../../../proto/storage.proto');
+
+const PROTO_DIR = process.env.NODE_ENV === 'production'
+  ? path.join(__dirname, '../../proto')
+  : path.join(__dirname, '../../../../proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
@@ -10,7 +18,7 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   enums: String,
   defaults: true,
   oneofs: true,
-  includeDirs: [path.join(__dirname, '../../../../proto')],
+  includeDirs: [PROTO_DIR],
 });
 
 const storageProto = grpc.loadPackageDefinition(packageDefinition) as any;

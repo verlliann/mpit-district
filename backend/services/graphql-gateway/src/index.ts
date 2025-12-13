@@ -11,11 +11,13 @@ import dotenv from 'dotenv';
 import { typeDefs } from './schema/typeDefs';
 import { resolvers } from './resolvers';
 import { StorageClient } from './clients/storage';
+import { ParserClient } from './clients/parser';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 const STORAGE_GRPC_URL = process.env.STORAGE_GRPC_URL || 'localhost:50055';
+const PARSER_GRPC_URL = process.env.PARSER_GRPC_URL || 'localhost:50051';
 
 async function startServer() {
   const app = express();
@@ -26,6 +28,7 @@ async function startServer() {
 
   // Initialize gRPC clients
   const storageClient = new StorageClient(STORAGE_GRPC_URL);
+  const parserClient = new ParserClient(PARSER_GRPC_URL);
 
   // Create WebSocket server for subscriptions
   const wsServer = new WebSocketServer({
@@ -42,6 +45,7 @@ async function startServer() {
         // TODO: Verify JWT token
         return {
           storageClient,
+          parserClient,
           userId: 'user-1', // Mock user ID
         };
       },
@@ -89,6 +93,7 @@ async function startServer() {
 
         return {
           storageClient,
+          parserClient,
           userId,
           user: {
             id: userId,
@@ -124,6 +129,7 @@ async function startServer() {
   console.log('');
   console.log('🔗 Connected to:');
   console.log(`   Storage Service: ${STORAGE_GRPC_URL}`);
+  console.log(`   Parser Service:  ${PARSER_GRPC_URL}`);
   console.log('');
   console.log('✅ Ready to accept requests!');
 }

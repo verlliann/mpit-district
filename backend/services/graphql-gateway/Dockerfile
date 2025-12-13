@@ -7,8 +7,8 @@ WORKDIR /app
 COPY services/graphql-gateway/package*.json ./
 RUN npm ci
 
-# Copy proto files
-COPY proto/ /proto/
+# Copy proto files to app/proto
+COPY proto/ ./proto/
 
 # Copy source code
 COPY services/graphql-gateway/ .
@@ -27,8 +27,8 @@ COPY services/graphql-gateway/package*.json ./
 # Install production dependencies only
 RUN npm ci --only=production
 
-# Copy proto files
-COPY proto/ /proto/
+# Copy proto files to app/proto
+COPY proto/ ./proto/
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
@@ -36,9 +36,10 @@ COPY --from=builder /app/dist ./dist
 # Expose GraphQL port
 EXPOSE 4000
 
+ENV NODE_ENV=production
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:4000/.well-known/apollo/server-health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 CMD ["node", "dist/index.js"]
-
