@@ -3,7 +3,11 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as path from 'path';
 
 export function loadProtoDefinition(protoFile: string): grpc.GrpcObject {
-  const PROTO_PATH = path.resolve(__dirname, '../../../..', protoFile);
+  // In production (Docker), proto files are in /app/proto/
+  // In development, they are 4 levels up from dist/utils/
+  const PROTO_PATH = process.env.NODE_ENV === 'production'
+    ? path.resolve('/app/proto', protoFile)
+    : path.resolve(__dirname, '../../../..', protoFile);
 
   const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
