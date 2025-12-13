@@ -45,6 +45,16 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Пропускаем Vite dev server ресурсы
+  if (url.pathname.startsWith('/@vite/') || 
+      url.pathname.startsWith('/@react-refresh') ||
+      url.pathname.startsWith('/@fs/') ||
+      url.pathname.includes('.tsx') ||
+      url.pathname.includes('.ts') ||
+      url.pathname.includes('?t=')) {
+    return;
+  }
+
   // Пропускаем запросы к другим доменам (кроме GraphQL)
   if (url.origin !== location.origin && !url.pathname.includes('graphql')) {
     return;

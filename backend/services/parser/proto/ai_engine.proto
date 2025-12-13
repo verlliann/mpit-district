@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package ai_engine;
+
+import "common.proto";
+import "storage.proto";
+
+option go_package = "github.com/ai-newsmaker/backend/proto/ai_engine";
+
+// ============================================================
+// AI ENGINE SERVICE
+// ============================================================
+
+service AIEngineService {
+  // Health check
+  rpc HealthCheck(common.HealthCheckRequest) returns (common.HealthCheckResponse);
+  
+  // Analyze article content
+  rpc AnalyzeContent(AnalyzeContentRequest) returns (AnalyzeContentResponse);
+  
+  // Generate posts for multiple platforms
+  rpc GeneratePosts(GeneratePostsRequest) returns (GeneratePostsResponse);
+  
+  // Generate single post
+  rpc GeneratePost(GeneratePostRequest) returns (GeneratePostResponse);
+  
+  // Regenerate post with different style
+  rpc RegeneratePost(RegeneratePostRequest) returns (GeneratePostResponse);
+  
+  // Extract facts from content
+  rpc ExtractFacts(ExtractFactsRequest) returns (ExtractFactsResponse);
+  
+  // Extract entities (NER)
+  rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
+  
+  // Extract quotes
+  rpc ExtractQuotes(ExtractQuotesRequest) returns (ExtractQuotesResponse);
+  
+  // Sentiment analysis
+  rpc AnalyzeSentiment(AnalyzeSentimentRequest) returns (AnalyzeSentimentResponse);
+  
+  // Summarize text
+  rpc Summarize(SummarizeRequest) returns (SummarizeResponse);
+}
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+message AnalyzeContentRequest {
+  string article_id = 1;
+  string content = 2;
+  string title = 3;
+  AnalysisOptions options = 4;
+}
+
+message AnalysisOptions {
+  bool extract_facts = 1;
+  bool extract_entities = 2;
+  bool extract_quotes = 3;
+  bool analyze_sentiment = 4;
+  bool generate_summary = 5;
+  int32 max_facts = 6;  // Max facts to extract (default: 10)
+  int32 min_fact_importance = 7;  // Min importance score 1-10 (default: 5)
+}
+
+message AnalyzeContentResponse {
+  bool success = 1;
+  string error = 2;
+  
+  // Results
+  repeated storage.Fact facts = 3;
+  repeated storage.Entity entities = 4;
+  repeated storage.Quote quotes = 5;
+  SentimentResult sentiment = 6;
+  string summary = 7;
+  
+  // Metadata
+  AnalysisMetadata metadata = 8;
+}
+
+message AnalysisMetadata {
+  LLMProvider provider = 1;
+  string model = 2;
+  int32 total_tokens = 3;
+  int32 prompt_tokens = 4;
+  int32 completion_tokens = 5;
+  float cost_usd = 6;
+  int32 processing_time_ms = 7;
+}
+
+enum LLMProvider {
+  LLM_PROVIDER_UNSPECIFIED = 0;
+  LLM_PROVIDER_OPENAI = 1;
+  LLM_PROVIDER_ANTHROPIC = 2;
+  LLM_PROVIDER_YANDEX = 3;
+  LLM_PROVIDER_OLLAMA = 4;
+}
+
+message GeneratePostsRequest {
+  string article_id = 1;
+  repeated common.Platform platforms = 2;
+  common.PostStyle style = 3;
+  int32 formality_level = 4;  // 1-10
+  repeated storage.Fact key_facts = 5;
+  string custom_instructions = 6;
+}
+
+message GeneratePostsResponse {
+  bool success = 1;
+  string error = 2;
+  repeated GeneratedPost posts = 3;
+  AnalysisMetadata metadata = 4;
+}
+
+message GeneratePostRequest {
+  string article_id = 1;
+  common.Platform platform = 2;
+  common.PostStyle style = 3;
+  int32 formality_level = 4;
+  repeated storage.Fact key_facts = 5;
+  string custom_instructions = 6;
+  repeated string image_urls = 7;
+}
+
+message GeneratePostResponse {
+  bool success = 1;
+  string error = 2;
+  GeneratedPost post = 3;
+  AnalysisMetadata metadata = 4;
+}
+
+message RegeneratePostRequest {
+  string post_id = 1;
+  string article_id = 2;
+  common.Platform platform = 3;
+  common.PostStyle new_style = 4;
+  int32 formality_level = 5;
+  string feedback = 6;  // Why regenerating
+}
+
+message GeneratedPost {
+  common.Platform platform = 1;
+  string content = 2;
+  common.PostStyle style = 3;
+  int32 estimated_reach = 4;
+  float quality_score = 5;  // 0-1
+  repeated string hashtags = 6;
+  ContentWarnings warnings = 7;
+}
+
+message ContentWarnings {
+  bool potentially_offensive = 1;
+  bool factual_uncertainty = 2;
+  bool needs_review = 3;
+  repeated string messages = 4;
+}
+
+message ExtractFactsRequest {
+  string content = 1;
+  string title = 2;
+  int32 max_facts = 3;
+  int32 min_importance = 4;
+}
+
+message ExtractFactsResponse {
+  repeated storage.Fact facts = 1;
+  AnalysisMetadata metadata = 2;
+}
+
+message ExtractEntitiesRequest {
+  string content = 1;
+  repeated common.EntityType filter_types = 2;
+}
+
+message ExtractEntitiesResponse {
+  repeated storage.Entity entities = 1;
+  AnalysisMetadata metadata = 2;
+}
+
+message ExtractQuotesRequest {
+  string content = 1;
+  int32 max_quotes = 2;
+}
+
+message ExtractQuotesResponse {
+  repeated storage.Quote quotes = 1;
+  AnalysisMetadata metadata = 2;
+}
+
+message AnalyzeSentimentRequest {
+  string content = 1;
+}
+
+message AnalyzeSentimentResponse {
+  SentimentResult sentiment = 1;
+  AnalysisMetadata metadata = 2;
+}
+
+message SentimentResult {
+  common.Sentiment sentiment = 1;
+  float score = 2;  // -1 to 1
+  float confidence = 3;  // 0 to 1
+  repeated AspectSentiment aspects = 4;
+}
+
+message AspectSentiment {
+  string aspect = 1;
+  common.Sentiment sentiment = 2;
+  float score = 3;
+}
+
+message SummarizeRequest {
+  string content = 1;
+  int32 max_length = 2;  // Max words
+  SummaryStyle style = 3;
+}
+
+enum SummaryStyle {
+  SUMMARY_STYLE_UNSPECIFIED = 0;
+  SUMMARY_STYLE_BRIEF = 1;      // 1-2 sentences
+  SUMMARY_STYLE_NORMAL = 2;     // 3-5 sentences
+  SUMMARY_STYLE_DETAILED = 3;   // 1-2 paragraphs
+  SUMMARY_STYLE_BULLET = 4;     // Bullet points
+}
+
+message SummarizeResponse {
+  string summary = 1;
+  int32 word_count = 2;
+  AnalysisMetadata metadata = 3;
+}
+

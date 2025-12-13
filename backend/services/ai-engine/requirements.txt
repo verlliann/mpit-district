@@ -1,0 +1,22 @@
+# gRPC
+grpcio==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.2
+
+# LLM Providers
+openai==1.6.1
+anthropic==0.8.1
+httpx==0.26.0
+
+# Async support
+aiohttp==3.9.1
+
+# Utils
+python-dotenv==1.0.0
+structlog==24.1.0
+tenacity==8.2.3
+
+# Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+

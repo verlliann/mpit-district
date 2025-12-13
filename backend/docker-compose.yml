@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -125,8 +123,8 @@ services:
   # Parser Service (Python)
   parser-service:
     build:
-      context: ./services/parser
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/parser/Dockerfile
     container_name: ai-newsmaker-parser
     ports:
       - "50051:50051"
@@ -144,8 +142,8 @@ services:
   # AI Engine Service (Python)
   ai-engine-service:
     build:
-      context: ./services/ai-engine
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ai-engine/Dockerfile
     container_name: ai-newsmaker-ai-engine
     ports:
       - "50052:50052"
@@ -164,8 +162,8 @@ services:
   # Media Service (Python)
   media-service:
     build:
-      context: ./services/media
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/media/Dockerfile
     container_name: ai-newsmaker-media
     ports:
       - "50053:50053"
@@ -185,8 +183,8 @@ services:
   # Publishing Service (Node.js)
   publishing-service:
     build:
-      context: ./services/publishing
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/publishing-service/Dockerfile
     container_name: ai-newsmaker-publishing
     ports:
       - "50054:50054"
@@ -206,8 +204,8 @@ services:
   # GraphQL Gateway (Node.js)
   graphql-gateway:
     build:
-      context: ./services/graphql-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/graphql-gateway/Dockerfile
     container_name: ai-newsmaker-graphql
     ports:
       - "4000:4000"

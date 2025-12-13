@@ -4,11 +4,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY services/graphql-gateway/package*.json ./
 RUN npm ci
 
+# Copy proto files
+COPY proto/ /proto/
+
 # Copy source code
-COPY . .
+COPY services/graphql-gateway/ .
 
 # Build TypeScript
 RUN npm run build
@@ -19,10 +22,13 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY services/graphql-gateway/package*.json ./
 
 # Install production dependencies only
 RUN npm ci --only=production
+
+# Copy proto files
+COPY proto/ /proto/
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

@@ -67,8 +67,9 @@ func main() {
 	)
 
 	// Register service
-	storageServer := server.NewStorageServer(articleRepo, postRepo)
-	// pb.RegisterStorageServiceServer(grpcServer, storageServer) // Uncomment after proto generation
+	_ = server.NewStorageServer(articleRepo, postRepo)
+	// TODO: Uncomment after proto generation
+	// pb.RegisterStorageServiceServer(grpcServer, storageServer)
 
 	// Register health check
 	healthServer := health.NewServer()

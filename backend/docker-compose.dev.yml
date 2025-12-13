@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Development environment - only infrastructure services
 # Use this when developing services locally
 

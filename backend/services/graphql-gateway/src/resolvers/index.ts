@@ -357,9 +357,10 @@ export const resolvers = {
       }
     },
 
-    publishPost: async (_: any, { id }: { id: string }, context: Context) => {
+    publishPost: async (_: any, { id }: { id: string }, _context: Context) => {
       try {
         // TODO: Call publishing service
+        console.log('Publishing post:', id);
         return {
           post: null,
           success: false,
@@ -374,9 +375,9 @@ export const resolvers = {
       }
     },
 
-    publishBatch: async (_: any, { ids }: { ids: string[] }, context: Context) => {
+    publishBatch: async (_: any, { ids }: { ids: string[] }, _context: Context) => {
       // TODO: Implement batch publishing
-      return ids.map((id) => ({
+      return ids.map((_id) => ({
         post: null,
         success: false,
         error: 'Publishing service not available yet',
@@ -398,7 +399,7 @@ export const resolvers = {
       return true;
     },
 
-    deletePost: async (_: any, { id }: { id: string }, context: Context) => {
+    deletePost: async (_: any, { id }: { id: string }, _context: Context) => {
       try {
         await pool.query('DELETE FROM posts WHERE id = $1', [id]);
         return true;
@@ -420,12 +421,12 @@ export const resolvers = {
       return template;
     },
 
-    updateTemplate: async (_: any, { id, content }: any, context: Context) => {
+    updateTemplate: async (_: any, { id: _id, content: _content }: any, _context: Context) => {
       // TODO: Implement template update
       throw new Error('Not implemented');
     },
 
-    deleteTemplate: async (_: any, { id }: { id: string }, context: Context) => {
+    deleteTemplate: async (_: any, { id: _id }: { id: string }, _context: Context) => {
       // TODO: Implement template deletion
       return true;
     },
@@ -448,7 +449,7 @@ export const resolvers = {
     },
 
     // User
-    updatePreferences: async (_: any, { preferences }: any, context: Context) => {
+    updatePreferences: async (_: any, { preferences: _preferences }: any, context: Context) => {
       if (!context.userId) {
         throw new Error('Unauthorized');
       }
@@ -457,7 +458,7 @@ export const resolvers = {
     },
 
     // Notifications
-    markNotificationRead: async (_: any, { id }: { id: string }) => {
+    markNotificationRead: async (_: any, { id: _id }: { id: string }) => {
       // TODO: Implement
       return true;
     },

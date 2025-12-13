@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/ai-newsmaker/backend/proto/common";
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+}
+
+// ============================================================
+// STATUS RESPONSE
+// ============================================================
+
+message StatusResponse {
+  bool success = 1;
+  string message = 2;
+  string error = 3;
+}
+
+// ============================================================
+// TIMESTAMP
+// ============================================================
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// ============================================================
+// PAGINATION
+// ============================================================
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message PaginationResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total = 3;
+  int32 total_pages = 4;
+}
+
+// Legacy pagination (deprecated, use PaginationRequest/Response)
+message Pagination {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total = 3;
+  int32 total_pages = 4;
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Sentiment {
+  SENTIMENT_UNSPECIFIED = 0;
+  SENTIMENT_POSITIVE = 1;
+  SENTIMENT_NEUTRAL = 2;
+  SENTIMENT_NEGATIVE = 3;
+}
+
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_PERSON = 1;
+  ENTITY_TYPE_ORGANIZATION = 2;
+  ENTITY_TYPE_LOCATION = 3;
+  ENTITY_TYPE_PRODUCT = 4;
+  ENTITY_TYPE_EVENT = 5;
+  ENTITY_TYPE_DATE = 6;
+  ENTITY_TYPE_MONEY = 7;
+  ENTITY_TYPE_PERCENT = 8;
+}
+
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_TELEGRAM = 1;
+  PLATFORM_VK = 2;
+  PLATFORM_INSTAGRAM = 3;
+  PLATFORM_FACEBOOK = 4;
+  PLATFORM_LINKEDIN = 5;
+  PLATFORM_TWITTER = 6;
+  PLATFORM_TIKTOK = 7;
+  PLATFORM_DZEN = 8;
+  PLATFORM_OK = 9;
+}
+
+enum PostStyle {
+  POST_STYLE_UNSPECIFIED = 0;
+  POST_STYLE_INFORMATIONAL = 1;
+  POST_STYLE_ENGAGING = 2;
+  POST_STYLE_EXPERT = 3;
+  POST_STYLE_EMOTIONAL = 4;
+}
+
+enum PostStatus {
+  POST_STATUS_UNSPECIFIED = 0;
+  POST_STATUS_DRAFT = 1;
+  POST_STATUS_REVIEW = 2;
+  POST_STATUS_APPROVED = 3;
+  POST_STATUS_SCHEDULED = 4;
+  POST_STATUS_PUBLISHING = 5;
+  POST_STATUS_PUBLISHED = 6;
+  POST_STATUS_FAILED = 7;
+  POST_STATUS_CANCELLED = 8;
+}
+
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_ADMIN = 1;
+  USER_ROLE_EDITOR = 2;
+  USER_ROLE_PUBLISHER = 3;
+  USER_ROLE_VIEWER = 4;
+}
+
+// ============================================================
+// COMMON MESSAGES
+// ============================================================
+
+// Error response
+message Error {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// Image (legacy, use storage.Image)
+message Image {
+  string id = 1;
+  string url = 2;
+  string thumbnail_url = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string alt_text = 6;
+  int64 size = 7;
+  string format = 8;
+}
+
+// Status (legacy enum)
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_PENDING = 1;
+  STATUS_IN_PROGRESS = 2;
+  STATUS_COMPLETED = 3;
+  STATUS_FAILED = 4;
+}
