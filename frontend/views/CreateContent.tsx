@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Card, Button, Input, Badge, ProgressBar } from '../components/ui';
 import { useMutation } from '@apollo/client';
-import { PARSE_ARTICLE, GENERATE_POSTS } from '../services/graphql/mutations';
+import { PARSE_ARTICLE, GENERATE_POSTS, PUBLISH_POST } from '../services/graphql/mutations';
 import { ArticleAnalysis, Platform, Post, Sentiment } from '../types';
-import { ArrowRight, Link, FileText, Check, AlertTriangle, RefreshCw, Calendar, Copy, Edit2 } from 'lucide-react';
+import { ArrowRight, Link, FileText, Check, AlertTriangle, RefreshCw, Calendar, Copy, Edit2, Send } from 'lucide-react';
 
 const STEPS = ['Источник', 'Анализ', 'Настройки', 'Результат'];
 
@@ -18,8 +18,25 @@ export const CreateContent: React.FC = () => {
 
   const [parseArticle, { loading: parsingLoading }] = useMutation(PARSE_ARTICLE);
   const [generatePosts, { loading: generatingLoading }] = useMutation(GENERATE_POSTS);
+  const [publishPost, { loading: publishingLoading }] = useMutation(PUBLISH_POST);
+  const [publishedPosts, setPublishedPosts] = useState<Record<string, boolean>>({});
 
   const isLoading = parsingLoading || generatingLoading;
+
+  const handlePublish = async (postId: string, platform: string) => {
+    try {
+      const { data } = await publishPost({ variables: { id: postId } });
+      if (data?.publishPost?.success) {
+        setPublishedPosts(prev => ({ ...prev, [postId]: true }));
+        alert(`✅ Пост успешно опубликован в ${platform}!`);
+      } else {
+        alert(`❌ Ошибка: ${data?.publishPost?.error || 'Не удалось опубликовать'}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`❌ Ошибка публикации: ${e.message}`);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!url) return;
@@ -372,6 +389,18 @@ export const CreateContent: React.FC = () => {
              </Card>
              
              <Card className="p-4">
+               <h4 className="font-bold mb-3 text-xs text-slate-800">🚀 Публикация</h4>
+               <Button 
+                 className="w-full text-sm h-10 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                 onClick={() => handlePublish(activePost?.id || '', activePost?.platform || '')}
+                 disabled={publishingLoading || publishedPosts[activePost?.id || '']}
+               >
+                 <Send size={16} className="mr-2" />
+                 {publishingLoading ? 'Отправка...' : publishedPosts[activePost?.id || ''] ? '✓ Отправлено' : 'Отправить'}
+               </Button>
+             </Card>
+             
+             <Card className="p-4">
                <h4 className="font-bold mb-2 text-xs text-slate-800">Планирование</h4>
                <div className="flex items-center gap-2 text-xs text-slate-600 mb-3 bg-white/40 p-2 rounded-lg border border-white/40">
                  <Calendar size={14} className="text-blue-500" />
@@ -380,14 +409,16 @@ export const CreateContent: React.FC = () => {
                <Button variant="secondary" className="w-full text-xs h-8">Изменить время</Button>
              </Card>
 
-             <div className="p-3 bg-orange-50/60 rounded-lg border border-orange-100/50 backdrop-blur-md">
-               <div className="flex items-start gap-2">
-                  <AlertTriangle className="text-orange-500 shrink-0 mt-0.5" size={14} />
-                  <p className="text-[10px] text-orange-900 leading-relaxed font-medium">
-                    Текст содержит клише. ИИ рекомендует заменить фразу "революционный продукт".
-                  </p>
+             {!publishedPosts[activePost?.id || ''] && (
+               <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-100/50 backdrop-blur-md">
+                 <div className="flex items-start gap-2">
+                    <Send className="text-blue-500 shrink-0 mt-0.5" size={14} />
+                    <p className="text-[10px] text-blue-900 leading-relaxed font-medium">
+                      Нажмите кнопку выше чтобы опубликовать пост в социальную сеть
+                    </p>
+                 </div>
                </div>
-             </div>
+             )}
           </div>
         </div>
       </div>

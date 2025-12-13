@@ -185,16 +185,64 @@ class YandexGPTProvider(LLMProvider):
         return LLMResponse(content, self.model, total_tokens, prompt_tokens, completion_tokens, cost)
 
 
-class GeminiProvider(LLMProvider):
-    """Google Gemini provider."""
+class OpenRouterProvider(LLMProvider):
+    """OpenRouter provider - доступ к разным моделям через единый API."""
     
-    # Модели Gemini с ценами ($ per 1M tokens)
+    def __init__(self):
+        model = settings.OPENROUTER_MODEL or "google/gemini-2.0-flash-001"
+        super().__init__("openrouter", model)
+        self.api_key = settings.OPENROUTER_API_KEY
+        self.endpoint = "https://openrouter.ai/api/v1/chat/completions"
+    
+    async def complete(self, prompt: str, temperature: float = 0.7, max_tokens: int = 4096, **kwargs) -> LLMResponse:
+        self.logger.info("Calling OpenRouter", model=self.model)
+        
+        start_time = time.time()
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ai-newsmaker.dev",
+            "X-Title": "AI-Newsmaker"
+        }
+        
+        data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": "Отвечай ТОЛЬКО валидным JSON без markdown."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "response_format": {"type": "json_object"}
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.endpoint, headers=headers, json=data, timeout=120.0)
+            response.raise_for_status()
+            result = response.json()
+        
+        elapsed = time.time() - start_time
+        
+        content = result["choices"][0]["message"]["content"]
+        prompt_tokens = result.get("usage", {}).get("prompt_tokens", len(prompt) // 4)
+        completion_tokens = result.get("usage", {}).get("completion_tokens", len(content) // 4)
+        total_tokens = prompt_tokens + completion_tokens
+        
+        # OpenRouter показывает стоимость в ответе
+        cost = result.get("usage", {}).get("total_cost", 0.0)
+        
+        self.logger.info("OpenRouter done", tokens=total_tokens, cost=round(cost, 6), time_ms=int(elapsed * 1000))
+        
+        return LLMResponse(content, self.model, total_tokens, prompt_tokens, completion_tokens, cost)
+
+
+class GeminiProvider(LLMProvider):
+    """Google Gemini provider (direct API)."""
+    
     MODELS = {
-        "gemini-2.0-flash-exp": {"input": 0.0, "output": 0.0},  # Бесплатная экспериментальная
-        "gemini-1.5-flash": {"input": 0.075, "output": 0.30},  # Быстрая
-        "gemini-1.5-flash-8b": {"input": 0.0375, "output": 0.15},  # Самая лёгкая (nano)
-        "gemini-1.5-pro": {"input": 1.25, "output": 5.0},  # Мощная
-        "gemini-exp-1206": {"input": 0.0, "output": 0.0},  # Экспериментальная
+        "gemini-2.0-flash-exp": {"input": 0.0, "output": 0.0},
+        "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
     }
     
     def __init__(self):
@@ -214,7 +262,6 @@ class GeminiProvider(LLMProvider):
             response_mime_type="application/json"
         )
         
-        # Gemini API синхронный, но быстрый
         import asyncio
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
@@ -226,10 +273,7 @@ class GeminiProvider(LLMProvider):
         )
         
         elapsed = time.time() - start_time
-        
         content = response.text
-        
-        # Токены из usage_metadata
         prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', len(prompt) // 4)
         completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', len(content) // 4)
         total_tokens = prompt_tokens + completion_tokens
@@ -242,15 +286,75 @@ class GeminiProvider(LLMProvider):
         return LLMResponse(content, self.model, total_tokens, prompt_tokens, completion_tokens, cost)
 
 
+class ImageGenerator:
+    """Генератор изображений через OpenRouter."""
+    
+    def __init__(self):
+        self.api_key = "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"
+        self.model = "google/gemini-2.0-flash-exp:free"  # Бесплатная модель для генерации
+        self.endpoint = "https://openrouter.ai/api/v1/chat/completions"
+        self.logger = logger.bind(provider="image_generator")
+    
+    async def generate_image_prompt(self, post_content: str) -> str:
+        """Генерирует промпт для изображения на основе текста поста."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ai-newsmaker.dev",
+            "X-Title": "AI-Newsmaker"
+        }
+        
+        data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": "Ты создаёшь промпты для генерации изображений. Отвечай ТОЛЬКО промптом на английском, без пояснений."},
+                {"role": "user", "content": f"Создай короткий промпт (до 100 слов) для изображения к этому посту:\n\n{post_content[:500]}"}
+            ],
+            "temperature": 0.8,
+            "max_tokens": 200
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.endpoint, headers=headers, json=data, timeout=30.0)
+                response.raise_for_status()
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            self.logger.error("Failed to generate image prompt", error=str(e))
+            return "Modern digital illustration, technology, social media, vibrant colors"
+    
+    async def generate_image_url(self, prompt: str) -> str:
+        """Генерирует URL изображения через Pollinations.ai (бесплатный сервис)."""
+        import urllib.parse
+        # Используем бесплатный сервис Pollinations для генерации изображений
+        encoded_prompt = urllib.parse.quote(prompt[:500])
+        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&nologo=true"
+        self.logger.info("Generated image URL", prompt=prompt[:50])
+        return image_url
+    
+    async def generate_for_post(self, post_content: str) -> str:
+        """Полный цикл: создаёт промпт и возвращает URL изображения."""
+        prompt = await self.generate_image_prompt(post_content)
+        image_url = await self.generate_image_url(prompt)
+        return image_url
+
+
+def get_image_generator() -> ImageGenerator:
+    """Получить генератор изображений."""
+    return ImageGenerator()
+
+
 def get_llm_provider(provider_name: str = None) -> LLMProvider:
     """Get LLM provider by name."""
-    name = provider_name or settings.DEFAULT_LLM_PROVIDER or "openai"
+    name = provider_name or settings.DEFAULT_LLM_PROVIDER or "openrouter"
     
     providers = {
         "openai": OpenAIProvider,
         "anthropic": AnthropicProvider,
         "yandex": YandexGPTProvider,
-        "gemini": GeminiProvider
+        "gemini": GeminiProvider,
+        "openrouter": OpenRouterProvider
     }
     
     if name not in providers:

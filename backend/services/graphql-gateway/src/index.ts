@@ -12,12 +12,16 @@ import { typeDefs } from './schema/typeDefs';
 import { resolvers } from './resolvers';
 import { StorageClient } from './clients/storage';
 import { ParserClient } from './clients/parser';
+import { AIEngineClient } from './clients/ai-engine';
+import { PublishingClient } from './clients/publishing';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 const STORAGE_GRPC_URL = process.env.STORAGE_GRPC_URL || 'localhost:50055';
 const PARSER_GRPC_URL = process.env.PARSER_GRPC_URL || 'localhost:50051';
+const AI_ENGINE_GRPC_URL = process.env.AI_ENGINE_GRPC_URL || 'localhost:50052';
+const PUBLISHING_GRPC_URL = process.env.PUBLISHING_GRPC_URL || 'localhost:50054';
 
 async function startServer() {
   const app = express();
@@ -29,6 +33,8 @@ async function startServer() {
   // Initialize gRPC clients
   const storageClient = new StorageClient(STORAGE_GRPC_URL);
   const parserClient = new ParserClient(PARSER_GRPC_URL);
+  const aiEngineClient = new AIEngineClient(AI_ENGINE_GRPC_URL);
+  const publishingClient = new PublishingClient(PUBLISHING_GRPC_URL);
 
   // Create WebSocket server for subscriptions
   const wsServer = new WebSocketServer({
@@ -46,6 +52,8 @@ async function startServer() {
         return {
           storageClient,
           parserClient,
+          aiEngineClient,
+          publishingClient,
           userId: 'user-1', // Mock user ID
         };
       },
@@ -78,8 +86,8 @@ async function startServer() {
   app.use(
     '/graphql',
     cors<cors.CorsRequest>({
-      origin: ['http://localhost:3001', 'http://localhost:3002', 'http://localhost:3000', 'http://localhost:5173'],
-      credentials: false,
+      origin: true,  // Разрешить все origins для разработки
+      credentials: true,
     }),
     express.json(),
     expressMiddleware(server, {
@@ -94,6 +102,8 @@ async function startServer() {
         return {
           storageClient,
           parserClient,
+          aiEngineClient,
+          publishingClient,
           userId,
           user: {
             id: userId,
@@ -128,8 +138,10 @@ async function startServer() {
   console.log(`❤️  Health check:         http://localhost:${PORT}/health`);
   console.log('');
   console.log('🔗 Connected to:');
-  console.log(`   Storage Service: ${STORAGE_GRPC_URL}`);
-  console.log(`   Parser Service:  ${PARSER_GRPC_URL}`);
+  console.log(`   Storage Service:     ${STORAGE_GRPC_URL}`);
+  console.log(`   Parser Service:      ${PARSER_GRPC_URL}`);
+  console.log(`   AI Engine Service:   ${AI_ENGINE_GRPC_URL}`);
+  console.log(`   Publishing Service:  ${PUBLISHING_GRPC_URL}`);
   console.log('');
   console.log('✅ Ready to accept requests!');
 }

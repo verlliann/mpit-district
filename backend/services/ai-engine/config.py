@@ -31,10 +31,14 @@ class Settings(BaseSettings):
     
     # Google Gemini
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"  # gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash-8b
+    GEMINI_MODEL: str = "gemini-1.5-flash"
     
-    # Default provider: openai | anthropic | yandex | gemini
-    DEFAULT_LLM_PROVIDER: str = "openai"
+    # OpenRouter (универсальный доступ к моделям)
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-001"
+    
+    # Default provider: openai | anthropic | yandex | gemini | openrouter
+    DEFAULT_LLM_PROVIDER: str = "openrouter"
     
     # Processing
     MAX_CONTENT_LENGTH: int = 32000

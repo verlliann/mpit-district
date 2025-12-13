@@ -11,13 +11,23 @@ export const AnalyticsView: React.FC = () => {
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - parseInt(period));
   
-  const { data, loading, error } = useQuery(GET_ANALYTICS, {
+  const { data, loading: queryLoading, error } = useQuery(GET_ANALYTICS, {
     variables: {
       from: fromDate.toISOString(),
       to: new Date().toISOString()
     },
-    errorPolicy: 'all'
+    errorPolicy: 'all',
+    fetchPolicy: 'network-only'
   });
+  
+  // Не показываем загрузку дольше 3 секунд
+  const [forceShow, setForceShow] = React.useState(false);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setForceShow(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const loading = queryLoading && !forceShow;
 
   const analytics = data?.analytics;
   

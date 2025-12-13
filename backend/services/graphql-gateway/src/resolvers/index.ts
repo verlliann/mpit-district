@@ -1,6 +1,8 @@
 import { GraphQLScalarType, Kind } from 'graphql';
 import { StorageClient } from '../clients/storage';
 import { ParserClient } from '../clients/parser';
+import { AIEngineClient } from '../clients/ai-engine';
+import { PublishingClient } from '../clients/publishing';
 import { PubSub } from 'graphql-subscriptions';
 import { pool } from '../clients/postgres';
 
@@ -48,6 +50,8 @@ const JSONScalar = new GraphQLScalarType({
 interface Context {
   storageClient: StorageClient;
   parserClient: ParserClient;
+  aiEngineClient: AIEngineClient;
+  publishingClient: PublishingClient;
   userId?: string;
   user?: any;
 }
@@ -194,18 +198,120 @@ export const resolvers = {
       }
     },
 
-    // Analytics (mock for now)
-    analytics: async (_: any, { from, to, platforms }: any, context: Context) => {
-      // TODO: Implement analytics aggregation
-      return {
-        totalPosts: 0,
-        totalReach: 0,
-        totalEngagement: 0,
-        averageEngagement: 0,
-        topPosts: [],
-        platformBreakdown: [],
-        timeline: [],
-      };
+    // Analytics - реальные данные из БД
+    analytics: async (_: any, { from, to, platforms }: any, _context: Context) => {
+      try {
+        const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const toDate = to ? new Date(to) : new Date();
+        
+        // Получаем статистику постов
+        const postsResult = await pool.query(`
+          SELECT 
+            COUNT(*) as total_posts,
+            COALESCE(SUM(m.views), 0) as total_reach,
+            COALESCE(SUM(m.likes + m.comments + m.shares), 0) as total_engagement
+          FROM posts p
+          LEFT JOIN metrics m ON p.id = m.post_id
+          WHERE p.created_at >= $1 AND p.created_at <= $2
+        `, [fromDate, toDate]);
+        
+        const stats = postsResult.rows[0];
+        const totalPosts = parseInt(stats.total_posts) || 0;
+        const totalReach = parseInt(stats.total_reach) || 0;
+        const totalEngagement = parseInt(stats.total_engagement) || 0;
+        
+        // Топ посты по вовлеченности
+        const topPostsResult = await pool.query(`
+          SELECT p.id, p.platform, p.content, 
+                 COALESCE(m.views, 0) as views,
+                 COALESCE(m.likes, 0) as likes,
+                 COALESCE(m.engagement_rate, 0) as engagement_rate
+          FROM posts p
+          LEFT JOIN metrics m ON p.id = m.post_id
+          WHERE p.created_at >= $1 AND p.created_at <= $2
+          ORDER BY m.engagement_rate DESC NULLS LAST
+          LIMIT 5
+        `, [fromDate, toDate]);
+        
+        // Разбивка по платформам
+        const platformResult = await pool.query(`
+          SELECT 
+            p.platform,
+            COUNT(*) as post_count,
+            COALESCE(SUM(m.views), 0) as total_views,
+            COALESCE(AVG(m.engagement_rate), 0) as avg_engagement
+          FROM posts p
+          LEFT JOIN metrics m ON p.id = m.post_id
+          WHERE p.created_at >= $1 AND p.created_at <= $2
+          GROUP BY p.platform
+        `, [fromDate, toDate]);
+        
+        // Получаем данные для timeline
+        const timelineResult = await pool.query(`
+          SELECT 
+            DATE(p.created_at) as date,
+            COUNT(*) as posts,
+            COALESCE(SUM(m.views), 0) as views,
+            COALESCE(SUM(m.likes), 0) as likes,
+            COALESCE(SUM(m.views), 0) as reach,
+            COALESCE(AVG(m.engagement_rate), 0) as engagement
+          FROM posts p
+          LEFT JOIN metrics m ON p.id = m.post_id
+          WHERE p.created_at >= $1 AND p.created_at <= $2
+          GROUP BY DATE(p.created_at)
+          ORDER BY DATE(p.created_at) ASC
+        `, [fromDate, toDate]);
+        
+        return {
+          totalPosts,
+          totalReach,
+          totalEngagement,
+          averageEngagement: totalPosts > 0 ? totalEngagement / totalPosts : 0,
+          topPosts: topPostsResult.rows.map((row: any) => ({
+            id: row.id,
+            platform: row.platform,
+            content: row.content?.substring(0, 100) || '',
+            status: 'PUBLISHED',
+            style: 'NEUTRAL',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            metrics: {
+              views: parseInt(row.views) || 0,
+              likes: parseInt(row.likes) || 0,
+              comments: 0,
+              shares: 0,
+              engagement: parseFloat(row.engagement_rate) || 0,
+            },
+          })),
+          platformBreakdown: platformResult.rows.map((row: any) => ({
+            platform: row.platform,
+            posts: parseInt(row.post_count) || 0,
+            reach: parseInt(row.total_views) || 0,
+            engagement: parseFloat(row.avg_engagement) || 0,
+            avgViews: parseInt(row.total_views) / Math.max(parseInt(row.post_count), 1) || 0,
+            avgLikes: 0,
+          })),
+          timeline: timelineResult.rows.map((row: any) => ({
+            date: row.date,
+            posts: parseInt(row.posts) || 0,
+            reach: parseInt(row.reach) || 0,
+            engagement: parseFloat(row.engagement) || 0,
+            views: parseInt(row.views) || 0,
+            likes: parseInt(row.likes) || 0,
+          })),
+        };
+      } catch (error: any) {
+        console.error('Error fetching analytics:', error);
+        return {
+          totalPosts: 0,
+          totalReach: 0,
+          totalEngagement: 0,
+          averageEngagement: 0,
+          topPosts: [],
+          platformBreakdown: [],
+          timeline: [],
+        };
+      }
     },
 
     // Templates
@@ -405,10 +511,122 @@ export const resolvers = {
 
     generatePosts: async (_: any, { input }: any, context: Context) => {
       try {
-        // TODO: Call AI engine service
-        return [];
-      } catch (error) {
-        throw new Error('AI Engine service not available yet');
+        const { articleId, platforms, style, formalityLevel, customInstructions } = input;
+        
+        // Получаем статью для генерации
+        let articleContent = '';
+        let articleTitle = '';
+        
+        if (articleId) {
+          const articleResult = await pool.query(
+            'SELECT title, content FROM articles WHERE id = $1',
+            [articleId]
+          );
+          if (articleResult.rows.length > 0) {
+            articleContent = articleResult.rows[0].content;
+            articleTitle = articleResult.rows[0].title;
+          }
+        }
+        
+        if (!articleContent) {
+          throw new Error('Статья не найдена или не содержит контента');
+        }
+        
+        console.log(`Generating posts for article ${articleId}, platforms: ${platforms}`);
+        
+        // Формируем инструкции с контентом статьи
+        const fullInstructions = `
+СТАТЬЯ ДЛЯ АДАПТАЦИИ:
+Заголовок: ${articleTitle}
+
+Текст статьи:
+${articleContent.substring(0, 8000)}
+
+${customInstructions ? `Дополнительные инструкции: ${customInstructions}` : ''}
+`.trim();
+        
+        // Вызов AI Engine для генерации постов
+        const response = await context.aiEngineClient.generatePosts(
+          articleId,
+          platforms || ['TELEGRAM', 'VK'],
+          style || 'NEUTRAL',
+          formalityLevel || 5,
+          [],
+          fullInstructions
+        );
+        
+        if (!response.success) {
+          throw new Error(response.error || 'Ошибка генерации постов');
+        }
+        
+        // Маппинг platform enum к строке
+        const platformMap: Record<number, string> = {
+          1: 'TELEGRAM',
+          2: 'VK',
+          3: 'INSTAGRAM',
+          4: 'LINKEDIN',
+          5: 'TWITTER',
+          6: 'FACEBOOK',
+        };
+        
+        const styleMap: Record<number, string> = {
+          1: 'NEUTRAL',
+          2: 'FORMAL',
+          3: 'ENGAGING',
+          4: 'INFORMAL',
+          5: 'BUSINESS',
+          6: 'CREATIVE',
+        };
+        
+        // Функция генерации изображения через Pollinations.ai
+        const generateImageUrl = (content: string): string => {
+          // Создаём промпт на основе контента
+          const cleanContent = content.replace(/[#@\n]/g, ' ').substring(0, 200);
+          const prompt = encodeURIComponent(`Modern digital illustration for social media post about: ${cleanContent}, vibrant colors, professional, clean design`);
+          return `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1080&nologo=true`;
+        };
+        
+        // Сохраняем сгенерированные посты в БД
+        const savedPosts = [];
+        for (const post of response.posts || []) {
+          const platform = platformMap[post.platform] || 'TELEGRAM';
+          const postStyle = styleMap[post.style] || 'NEUTRAL';
+          
+          // Генерируем изображение для поста
+          const imageUrl = generateImageUrl(post.content);
+          
+          // Используем дефолтный user_id для демо
+          const defaultUserId = '00000000-0000-0000-0000-000000000001';
+          const insertResult = await pool.query(`
+            INSERT INTO posts (user_id, article_id, platform, content, style, status)
+            VALUES ($1, $2, $3, $4, $5, 'DRAFT')
+            RETURNING id, platform, content, style, status, created_at
+          `, [defaultUserId, articleId, platform, post.content, postStyle]);
+          
+          const savedPost = insertResult.rows[0];
+          savedPosts.push({
+            id: savedPost.id,
+            platform: savedPost.platform,
+            content: savedPost.content,
+            style: savedPost.style,
+            status: savedPost.status,
+            createdAt: savedPost.created_at,
+            article: {
+              id: articleId,
+              title: articleTitle,
+            },
+            qualityScore: post.quality_score,
+            estimatedReach: post.estimated_reach,
+            hashtags: post.hashtags || [],
+            images: [{ id: `img-${savedPost.id}`, url: imageUrl, thumbnailUrl: imageUrl }],
+          });
+        }
+        
+        console.log(`Generated ${savedPosts.length} posts with images`);
+        return savedPosts;
+      } catch (error: any) {
+        console.error('Error generating posts:', error);
+        throw new Error(`Ошибка генерации постов: ${error.message}`);
       }
     },
 
@@ -453,31 +671,157 @@ export const resolvers = {
       }
     },
 
-    publishPost: async (_: any, { id }: { id: string }, _context: Context) => {
+    publishPost: async (_: any, { id }: { id: string }, context: Context) => {
       try {
-        // TODO: Call publishing service
         console.log('Publishing post:', id);
+        
+        // Получаем пост из БД
+        const postResult = await pool.query(`
+          SELECT p.*, a.title as article_title
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          WHERE p.id = $1
+        `, [id]);
+        
+        if (postResult.rows.length === 0) {
+          return {
+            post: null,
+            success: false,
+            error: 'Пост не найден',
+          };
+        }
+        
+        const post = postResult.rows[0];
+        
+        // Генерируем URL изображения для поста
+        const cleanContent = post.content.replace(/[#@\n]/g, ' ').substring(0, 150);
+        const imagePrompt = encodeURIComponent(`Modern illustration for: ${cleanContent}, vibrant, professional`);
+        const imageUrl = `https://image.pollinations.ai/prompt/${imagePrompt}?width=1080&height=1080&nologo=true`;
+        
+        // Вызов Publishing Service
+        const response = await context.publishingClient.publishPost(
+          id,
+          'default-account',
+          post.platform,
+          post.content,
+          [imageUrl] // Передаём сгенерированное изображение
+        );
+        
+        if (!response.success) {
+          // Обновляем статус поста на FAILED
+          await pool.query(
+            `UPDATE posts SET status = 'FAILED', updated_at = NOW() WHERE id = $1`,
+            [id]
+          );
+          
+          return {
+            post: null,
+            success: false,
+            error: response.error || 'Ошибка публикации',
+          };
+        }
+        
+        // Обновляем статус поста на PUBLISHED
+        const updateResult = await pool.query(`
+          UPDATE posts 
+          SET status = 'PUBLISHED', 
+              published_at = NOW(),
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING *
+        `, [id]);
+        
+        const updatedPost = updateResult.rows[0];
+        
+        // Публикуем событие для подписчиков
+        pubsub.publish(`POST_STATUS_${id}`, {
+          postStatusChanged: {
+            id: updatedPost.id,
+            status: 'PUBLISHED',
+            publishedAt: updatedPost.published_at,
+          },
+        });
+        
         return {
-          post: null,
-          success: false,
-          error: 'Publishing service not available yet',
+          post: {
+            id: updatedPost.id,
+            platform: updatedPost.platform,
+            content: updatedPost.content,
+            status: 'PUBLISHED',
+            publishedAt: updatedPost.published_at,
+          },
+          success: true,
+          error: null,
         };
       } catch (error: any) {
+        console.error('Error publishing post:', error);
         return {
           post: null,
           success: false,
-          error: error.message,
+          error: error.message || 'Ошибка публикации',
         };
       }
     },
 
-    publishBatch: async (_: any, { ids }: { ids: string[] }, _context: Context) => {
-      // TODO: Implement batch publishing
-      return ids.map((_id) => ({
-        post: null,
-        success: false,
-        error: 'Publishing service not available yet',
-      }));
+    publishBatch: async (_: any, { ids }: { ids: string[] }, context: Context) => {
+      const results = [];
+      
+      for (const id of ids) {
+        try {
+          // Получаем пост из БД
+          const postResult = await pool.query(
+            'SELECT * FROM posts WHERE id = $1',
+            [id]
+          );
+          
+          if (postResult.rows.length === 0) {
+            results.push({
+              post: null,
+              success: false,
+              error: `Пост ${id} не найден`,
+            });
+            continue;
+          }
+          
+          const post = postResult.rows[0];
+          
+          // Вызов Publishing Service
+          const response = await context.publishingClient.publishPost(
+            id,
+            'default-account',
+            post.platform,
+            post.content
+          );
+          
+          if (response.success) {
+            await pool.query(`
+              UPDATE posts 
+              SET status = 'PUBLISHED', published_at = NOW(), updated_at = NOW()
+              WHERE id = $1
+            `, [id]);
+            
+            results.push({
+              post: { id, platform: post.platform, status: 'PUBLISHED' },
+              success: true,
+              error: null,
+            });
+          } else {
+            results.push({
+              post: null,
+              success: false,
+              error: response.error || 'Ошибка публикации',
+            });
+          }
+        } catch (error: any) {
+          results.push({
+            post: null,
+            success: false,
+            error: error.message,
+          });
+        }
+      }
+      
+      return results;
     },
 
     schedulePost: async (_: any, { id, scheduledAt }: any, context: Context) => {

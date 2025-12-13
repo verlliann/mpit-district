@@ -28,31 +28,52 @@ export class PublishingServiceImpl {
       
       logger.info({ postId: request.post_id }, 'Publishing post');
 
+      // Нормализуем platform (убираем PLATFORM_ префикс)
+      const normalizePlatform = (p: string): string => {
+        return p.replace('PLATFORM_', '').toUpperCase();
+      };
+      
+      const platform = normalizePlatform(request.platform);
+      
+      // Получаем токен из конфига по платформе
+      const getAccessToken = (): string => {
+        if (platform === 'TELEGRAM') return process.env.TELEGRAM_BOT_TOKEN || '';
+        if (platform === 'VK') return process.env.VK_ACCESS_TOKEN || '';
+        return '';
+      };
+      
+      // Получаем chatId/groupId из конфига
+      const getChatId = (): string => {
+        if (platform === 'TELEGRAM') return process.env.TELEGRAM_DEFAULT_CHAT_ID || process.env.TELEGRAM_CHANNEL_ID || '';
+        if (platform === 'VK') return process.env.VK_GROUP_ID || '';
+        return request.social_account_id;
+      };
+      
+      logger.info({ platform, token: getAccessToken() ? 'SET' : 'EMPTY', chatId: getChatId() }, 'Platform config');
+
       const job: PublishingJob = {
         postId: request.post_id,
-        socialAccountId: request.social_account_id,
-        platform: request.platform as Platform,
+        socialAccountId: getChatId(),
+        platform: platform as Platform,
         content: request.content,
         imageUrls: request.image_urls || [],
         videoUrls: request.video_urls || [],
-        options: request.options,
-        accessToken: request.social_account_id, // This should be fetched from storage
+        options: {
+          ...request.options,
+          platformSpecific: {
+            chatId: getChatId(),
+          },
+        },
+        accessToken: getAccessToken(),
       };
 
-      // Add to queue
-      const queueJob = await getPublishingQueue().add(
-        `publish-${request.post_id}`,
-        job,
-        {
-          attempts: 3,
-        }
-      );
+      logger.info({ job }, 'Publishing job created, sending directly...');
 
-      // Wait for job completion (with timeout)
-      const result = await queueJob.waitUntilFinished(
-        (getPublishingQueue() as any).queueEvents || getPublishingQueue(),
-        30000 // 30 seconds timeout
-      );
+      // Прямая отправка без очереди
+      const bot = botFactory.getBot(platform as Platform);
+      const result = await bot.publish(job);
+
+      logger.info({ result }, 'Publish result');
 
       callback(null, {
         success: result.success,
@@ -64,14 +85,14 @@ export class PublishingServiceImpl {
               external_id: result.externalId,
               external_url: result.externalUrl,
               published_at: {
-                seconds: Math.floor(result.publishedAt!.getTime() / 1000),
+                seconds: Math.floor((result.publishedAt || new Date()).getTime() / 1000),
               },
               platform: request.platform,
             }
           : undefined,
         metadata: {
-          attempt_number: queueJob.attemptsMade,
-          processing_time_ms: Date.now() - queueJob.timestamp,
+          attempt_number: 1,
+          processing_time_ms: 0,
           used_fallback: false,
           api_version: 'v1',
         },

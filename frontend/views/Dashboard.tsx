@@ -51,7 +51,8 @@ export const Dashboard: React.FC = () => {
   // Получаем последние посты
   const { data: postsData, loading: postsLoading, error: postsError } = useQuery(GET_POSTS, {
     variables: { limit: 5, offset: 0 },
-    errorPolicy: 'all'
+    errorPolicy: 'all',
+    fetchPolicy: 'network-only'
   });
 
   // Получаем аналитику за последние 30 дней
@@ -63,16 +64,24 @@ export const Dashboard: React.FC = () => {
       from: thirtyDaysAgo.toISOString(),
       to: new Date().toISOString()
     },
-    errorPolicy: 'all'
+    errorPolicy: 'all',
+    fetchPolicy: 'network-only'
   });
 
   const posts = postsData?.posts?.nodes || [];
-  const totalPosts = postsData?.posts?.totalCount || 0;
+  const totalPosts = postsData?.posts?.totalCount ?? 0;
   const analytics = analyticsData?.analytics;
 
-  const totalReach = analytics?.totalReach || 0;
-  const avgEngagement = analytics?.averageEngagement || 0;
+  const totalReach = analytics?.totalReach ?? 0;
+  const avgEngagement = analytics?.averageEngagement ?? 0;
   const publishedCount = posts.filter((p: any) => p.status === 'PUBLISHED').length;
+  
+  // Не показываем загрузку дольше 3 секунд - показываем 0
+  const [forceShow, setForceShow] = React.useState(false);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setForceShow(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -93,7 +102,8 @@ export const Dashboard: React.FC = () => {
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   };
 
-  const isLoading = postsLoading || analyticsLoading;
+  // Если forceShow=true - прекращаем показывать загрузку
+  const isLoading = (postsLoading || analyticsLoading) && !forceShow;
   const hasError = postsError && posts.length === 0;
 
   return (

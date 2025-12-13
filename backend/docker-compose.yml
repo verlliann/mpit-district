@@ -140,8 +140,10 @@ services:
       - YANDEX_API_KEY=${YANDEX_API_KEY:-}
       - YANDEX_FOLDER_ID=${YANDEX_FOLDER_ID:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
-      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-gemini}
+      - GEMINI_MODEL=gemini-1.5-flash
+      - OPENROUTER_API_KEY=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
+      - OPENROUTER_MODEL=google/gemini-2.0-flash-001
+      - DEFAULT_LLM_PROVIDER=openrouter
     depends_on:
       - storage-service
     networks:
@@ -187,10 +189,11 @@ services:
       - STORAGE_GRPC_URL=storage-service:50055
       - RABBITMQ_URL=amqp://newsmaker:newsmaker_rabbit_pass@rabbitmq:5672
       - REDIS_URL=redis://:redis_dev_password@redis:6379
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID:-}
-      - VK_ACCESS_TOKEN=${VK_ACCESS_TOKEN:-}
-      - VK_GROUP_ID=${VK_GROUP_ID:-}
+      - TELEGRAM_BOT_TOKEN=8439439151:AAFG7I1OhNUj5O6WRBhxtmxPNq8LotjXYO0
+      - TELEGRAM_DEFAULT_CHAT_ID=@SiriusNewsMPIT
+      - TELEGRAM_CHANNEL_ID=@SiriusNewsMPIT
+      - VK_ACCESS_TOKEN=vk1.a.CYnR3uprDhG376_pl63nMcizPIWTSG3bixUOvqavG8WcfCWVRwRe7iFSYXKtjgDfV8C0bzJ-XRGfj7eSaM5PhzjRYm2uzSINsem36cMmWELdC8WBaiS8e6MbCnVKqlltgfkshg9IRhD-jWPSjXe2aOl6fq2dOKOO4C5utBjNpoVZweYgZ-LwSp6tSvvuNBuZ2qJ_x0vzWF67PDkZtSXKaw
+      - VK_GROUP_ID=-234580749
     depends_on:
       - storage-service
       - rabbitmq
